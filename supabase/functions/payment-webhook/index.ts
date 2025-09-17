@@ -64,6 +64,35 @@ serve(async (req) => {
         status: 'success'
     });
 
+    // Trigger LiteLLM sync for updated budget
+    try {
+      const { data: virtualKey } = await supabaseAdmin
+        .from('virtual_keys')
+        .select('litellm_key_id, max_budget, credit_balance')
+        .eq('user_id', resolvedUserId)
+        .single();
+
+      if (virtualKey?.litellm_key_id) {
+        // Call the sync API to update LiteLLM budget
+        const baseUrl = Deno.env.get('BASE_URL') || 'http://localhost:3000';
+        await fetch(`${baseUrl}/api/keys/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('INTERNAL_API_KEY') || 'internal'}`
+          },
+          body: JSON.stringify({
+            keyId: virtualKey.litellm_key_id,
+            action: 'update'
+          })
+        }).catch(error => {
+          console.warn('Failed to sync LiteLLM after payment:', error);
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to trigger LiteLLM sync after payment:', error);
+    }
+
     console.log(`Successfully added ${creditToAdd} credits to user ${userId}`);
   }
 

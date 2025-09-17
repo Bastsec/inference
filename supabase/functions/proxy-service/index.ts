@@ -6,6 +6,50 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const LITELLM_MASTER_KEY = Deno.env.get('LITELLM_MASTER_KEY')!
 const LITELLM_BASE_URL = Deno.env.get('LITELLM_BASE_URL')!
+const LITELLM_TOKEN_COUNTER_URL = Deno.env.get('LITELLM_TOKEN_COUNTER_URL') || `${LITELLM_BASE_URL}/utils/token_counter`
+
+// LiteLLM API interfaces
+interface TokenCountRequest {
+  model: string;
+  prompt?: string;
+  messages?: any[];
+}
+
+interface TokenCountResponse {
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+// Utility function to call LiteLLM token counter with retry
+async function countTokens(request: TokenCountRequest, retries = 2): Promise<TokenCountResponse | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(LITELLM_TOKEN_COUNTER_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LITELLM_MASTER_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Token counter failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.warn(`Token counting attempt ${attempt + 1} failed:`, error);
+      if (attempt === retries) {
+        return null;
+      }
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  return null;
+}
 
 serve(async (req) => {
   // 1. Extract virtual key and request body
@@ -19,7 +63,7 @@ serve(async (req) => {
   const supabaseAdmin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: keyData, error: keyError } = await supabaseAdmin
     .from('virtual_keys')
-    .select('user_id, credit_balance, is_active')
+    .select('id, user_id, credit_balance, is_active, litellm_key_id, rpm_limit, tpm_limit, model_restrictions')
     .eq('key', virtualKey)
     .single()
 
@@ -31,8 +75,19 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Insufficient credit or inactive key' }), { status: 402 }) // 402 Payment Required
   }
 
+  // 3. Check model restrictions if configured
+  const modelRestrictions = keyData.model_restrictions ? JSON.parse(keyData.model_restrictions) : null
+  const requestedModel = requestBody?.model
+  if (modelRestrictions && requestedModel && !modelRestrictions.includes(requestedModel)) {
+    return new Response(JSON.stringify({ error: `Model '${requestedModel}' not allowed for this key` }), { status: 403 })
+  }
+
+  const startTime = Date.now()
+  let tokenCountData: TokenCountResponse | null = null
+  let usageLogId: string | null = null
+
   try {
-    // 3. Forward the request to LiteLLM via HTTP
+    // 4. Forward the request to LiteLLM via HTTP
     const endpoint = requestBody?.messages ? '/v1/chat/completions' : '/v1/completions'
     const url = `${LITELLM_BASE_URL}${endpoint}`
     const llmRes = await fetch(url, {
@@ -47,41 +102,111 @@ serve(async (req) => {
     if (!llmRes.ok) {
       const errText = await llmRes.text()
       console.error('LiteLLM error:', llmRes.status, errText)
+      
+      // Log failed request
+      await supabaseAdmin.rpc('log_usage', {
+        p_user_id: keyData.user_id,
+        p_virtual_key_id: keyData.id,
+        p_model: requestedModel || 'unknown',
+        p_prompt_tokens: 0,
+        p_completion_tokens: 0,
+        p_total_tokens: 0,
+        p_cost_in_cents: 0,
+        p_request_duration_ms: Date.now() - startTime
+      }).then(({ data }) => {
+        if (data) usageLogId = data;
+      });
+
       return new Response(JSON.stringify({ error: 'LLM upstream error' }), { status: 502 })
     }
 
     const responseJson = await llmRes.json()
+    const requestDuration = Date.now() - startTime
 
-    // 4. Determine cost of the call
+    // 5. Get accurate token count from LiteLLM
+    if (requestedModel) {
+      const tokenRequest: TokenCountRequest = {
+        model: requestedModel,
+        ...(requestBody?.messages ? { messages: requestBody.messages } : { prompt: requestBody?.prompt || '' })
+      }
+      tokenCountData = await countTokens(tokenRequest)
+    }
+
+    // 6. Determine cost of the call
     // Prefer header from LiteLLM server if available
     const headerCost = llmRes.headers.get('x-litellm-cost') || llmRes.headers.get('x-request-cost')
     let costInCents = 0
+    
     if (headerCost) {
       const numeric = Number(headerCost)
       if (!Number.isNaN(numeric)) {
         costInCents = Math.ceil(numeric * 100)
       }
+    } else if (tokenCountData) {
+      // Fallback: estimate cost based on token count (rough estimate: $0.01 per 1000 tokens)
+      costInCents = Math.max(1, Math.ceil(tokenCountData.total_tokens * 0.00001 * 100))
     } else {
-      // Fallback: minimal flat cost to avoid abuse until pricing is configured on LiteLLM
-      // TODO: replace with accurate usage-based pricing once your LiteLLM server exposes cost headers
+      // Final fallback: minimal flat cost
       costInCents = 1
     }
 
-    // 5. Decrement the user's balance (atomic operation)
+    // 7. Log detailed usage metrics
+    const { data: logId } = await supabaseAdmin.rpc('log_usage', {
+      p_user_id: keyData.user_id,
+      p_virtual_key_id: keyData.id,
+      p_model: requestedModel || 'unknown',
+      p_prompt_tokens: tokenCountData?.prompt_tokens || 0,
+      p_completion_tokens: tokenCountData?.completion_tokens || 0,
+      p_total_tokens: tokenCountData?.total_tokens || 0,
+      p_cost_in_cents: costInCents,
+      p_litellm_model_id: llmRes.headers.get('x-litellm-model-id') || null,
+      p_provider: llmRes.headers.get('x-litellm-provider') || null,
+      p_request_duration_ms: requestDuration
+    });
+    
+    if (logId) usageLogId = logId;
+
+    // 8. Decrement the user's balance (atomic operation)
     const { error: rpcError } = await supabaseAdmin.rpc('decrement_credit', {
         key_id: virtualKey,
         amount: costInCents
     });
 
-    if (rpcError) throw rpcError;
+    if (rpcError) {
+      console.error('Failed to decrement credit:', rpcError);
+      throw rpcError;
+    }
 
-    // 6. Return the LLM's response to the user
+    // 9. Return the LLM's response to the user with optional cost info
+    const responseHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    
+    // Optionally include cost information in headers (can be disabled for production)
+    if (Deno.env.get('INCLUDE_COST_HEADERS') === 'true') {
+      responseHeaders['X-Request-Cost-Cents'] = costInCents.toString()
+      if (tokenCountData) {
+        responseHeaders['X-Token-Count'] = tokenCountData.total_tokens.toString()
+      }
+    }
+
     return new Response(JSON.stringify(responseJson), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: responseHeaders,
       status: 200,
     })
   } catch (error) {
     console.error('Proxy Error:', error)
+    
+    // Update usage log with error if we have one
+    if (usageLogId) {
+      await supabaseAdmin
+        .from('usage_logs')
+        .update({ 
+          status: 'error', 
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          request_duration_ms: Date.now() - startTime
+        })
+        .eq('id', usageLogId);
+    }
+    
     return new Response(JSON.stringify({ error: 'Failed to process LLM request' }), { status: 500 })
   }
 })

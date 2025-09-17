@@ -138,6 +138,17 @@ export const virtualKeys = pgTable('virtual_keys', {
   creditBalance: integer('credit_balance').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
+  // LiteLLM integration fields
+  litellmKeyId: text('litellm_key_id').unique(),
+  rpmLimit: integer('rpm_limit'),
+  tpmLimit: integer('tpm_limit'),
+  maxBudget: integer('max_budget'), // in cents
+  budgetDuration: text('budget_duration'), // e.g., "30d", "1h"
+  modelRestrictions: text('model_restrictions'), // JSON array of allowed models
+  guardrails: text('guardrails'), // JSON array of guardrail names
+  metadata: text('metadata'), // JSON object for additional data
+  lastSyncedAt: timestamp('last_synced_at'),
+  syncStatus: varchar('sync_status', { length: 20 }).default('pending'), // pending, synced, failed
 });
 
 export const transactions = pgTable('transactions', {
@@ -150,15 +161,69 @@ export const transactions = pgTable('transactions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const usageLogs = pgTable('usage_logs', {
+  id: uuid('id').default(sql`gen_random_uuid()`).primaryKey(),
+  userId: uuid('user_id').references(() => profiles.id, { onDelete: 'cascade' }),
+  virtualKeyId: uuid('virtual_key_id').references(() => virtualKeys.id, { onDelete: 'cascade' }),
+  model: text('model').notNull(),
+  promptTokens: integer('prompt_tokens').default(0),
+  completionTokens: integer('completion_tokens').default(0),
+  totalTokens: integer('total_tokens').default(0),
+  cacheReadInputTokens: integer('cache_read_input_tokens').default(0),
+  cacheCreationInputTokens: integer('cache_creation_input_tokens').default(0),
+  costInCents: integer('cost_in_cents').notNull(),
+  litellmModelId: text('litellm_model_id'),
+  provider: text('provider'),
+  requestDuration: integer('request_duration_ms'),
+  status: varchar('status', { length: 20 }).default('success'), // success, failed, error
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const systemAlerts = pgTable('system_alerts', {
+  id: uuid('id').default(sql`gen_random_uuid()`).primaryKey(),
+  service: varchar('service', { length: 50 }).notNull(),
+  severity: varchar('severity', { length: 20 }).notNull(),
+  message: text('message').notNull(),
+  details: text('details'), // JSON data
+  resolved: boolean('resolved').default(false),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: uuid('resolved_by').references(() => profiles.id),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const monitoringLogs = pgTable('monitoring_logs', {
+  id: uuid('id').default(sql`gen_random_uuid()`).primaryKey(),
+  service: varchar('service', { length: 50 }).notNull(),
+  checkType: varchar('check_type', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull(),
+  responseTimeMs: integer('response_time_ms'),
+  details: text('details'), // JSON data
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const profilesRelations = relations(profiles, ({ many }) => ({
   virtualKeys: many(virtualKeys),
   transactions: many(transactions),
+  usageLogs: many(usageLogs),
 }));
 
-export const virtualKeysRelations = relations(virtualKeys, ({ one }) => ({
+export const virtualKeysRelations = relations(virtualKeys, ({ one, many }) => ({
   user: one(profiles, {
     fields: [virtualKeys.userId],
     references: [profiles.id],
+  }),
+  usageLogs: many(usageLogs),
+}));
+
+export const usageLogsRelations = relations(usageLogs, ({ one }) => ({
+  user: one(profiles, {
+    fields: [usageLogs.userId],
+    references: [profiles.id],
+  }),
+  virtualKey: one(virtualKeys, {
+    fields: [usageLogs.virtualKeyId],
+    references: [virtualKeys.id],
   }),
 }));
 
@@ -205,3 +270,9 @@ export type VirtualKey = typeof virtualKeys.$inferSelect;
 export type NewVirtualKey = typeof virtualKeys.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
+export type UsageLog = typeof usageLogs.$inferSelect;
+export type NewUsageLog = typeof usageLogs.$inferInsert;
+export type SystemAlert = typeof systemAlerts.$inferSelect;
+export type NewSystemAlert = typeof systemAlerts.$inferInsert;
+export type MonitoringLog = typeof monitoringLogs.$inferSelect;
+export type NewMonitoringLog = typeof monitoringLogs.$inferInsert;

@@ -19,9 +19,29 @@ BEGIN
   INSERT INTO public.profiles (id, email)
   VALUES (new.id, new.email);
 
-  -- Create a virtual key for the new user
-  INSERT INTO public.virtual_keys (user_id, key, credit_balance, is_active)
-  VALUES (new.id, 'proxy-' || substr(md5(random()::text), 0, 25), 500, true);
+  -- Create a placeholder virtual key record (LiteLLM key will be created on-demand)
+  INSERT INTO public.virtual_keys (
+    user_id, 
+    key, 
+    credit_balance, 
+    is_active,
+    max_budget,
+    budget_duration,
+    rpm_limit,
+    tpm_limit,
+    sync_status
+  )
+  VALUES (
+    new.id, 
+    'placeholder-' || substr(md5(random()::text), 0, 25), 
+    0, -- Not used in simplified version
+    true,
+    1000, -- $10.00 default budget in cents
+    '30d', -- 30 day budget cycle
+    100,   -- 100 requests per minute default
+    10000, -- 10k tokens per minute default
+    'pending' -- LiteLLM key will be created when user requests it
+  );
 
   RETURN new;
 END;
