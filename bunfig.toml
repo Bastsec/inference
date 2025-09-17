@@ -1,0 +1,3 @@
+# Bun config for this repo
+[install]
+exact = true
