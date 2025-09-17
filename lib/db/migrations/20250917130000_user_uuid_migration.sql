@@ -1,8 +1,6 @@
--- Add UUID reference columns to team_members and activity_logs
 ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS user_uuid uuid;
 ALTER TABLE public.activity_logs ADD COLUMN IF NOT EXISTS user_uuid uuid;
 
--- Backfill user_uuid from users.email -> profiles.email mapping
 UPDATE public.team_members tm
 SET user_uuid = p.id
 FROM public.users u
@@ -15,7 +13,6 @@ FROM public.users u
 JOIN public.profiles p ON p.email = u.email
 WHERE al.user_id = u.id AND al.user_uuid IS NULL;
 
--- Add foreign keys if they don't already exist
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -42,6 +39,5 @@ BEGIN
   END IF;
 END $$;
 
--- Helpful indexes
 CREATE INDEX IF NOT EXISTS idx_team_members_user_uuid ON public.team_members(user_uuid);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_uuid ON public.activity_logs(user_uuid);

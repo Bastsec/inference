@@ -13,7 +13,7 @@ function resolveMigrationsDir() {
 export async function runMigrations() {
   const migrationsDir = resolveMigrationsDir();
 
-  // Create a simple migrations table to track applied files
+  
   await client`
     CREATE TABLE IF NOT EXISTS app_migrations (
       name text PRIMARY KEY,
@@ -25,7 +25,7 @@ export async function runMigrations() {
   const files = entries
     .filter((e) => e.isFile() && e.name.endsWith('.sql'))
     .map((e) => e.name)
-    .sort(); // filenames start with timestamp -> natural order
+    .sort(); 
 
   for (const file of files) {
     const [{ count }] = await client`
@@ -33,12 +33,11 @@ export async function runMigrations() {
     ` as unknown as Array<{ count: number }>;
 
     if (count > 0) {
-      continue; // already applied
+      continue; 
     }
 
     const sqlText = await fs.readFile(path.join(migrationsDir, file), 'utf8');
 
-    // Execute the migration within a transaction
     await client.begin(async (trx) => {
       await trx.unsafe(sqlText);
       await trx`
@@ -48,7 +47,6 @@ export async function runMigrations() {
   }
 }
 
-// Allow running directly (e.g. via tsx lib/db/migrate.ts)
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   runMigrations()
     .then(() => {

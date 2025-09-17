@@ -9,7 +9,7 @@ serve(async (req) => {
   const signature = req.headers.get('x-paystack-signature')
   const body = await req.text()
 
-  // 1. Verify the webhook is from Paystack
+ 
   const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(body).digest('hex')
   if (hash !== signature) {
     return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 400 })
@@ -17,13 +17,10 @@ serve(async (req) => {
 
   const event = JSON.parse(body)
 
-  // 2. Check for successful charge event
   if (event.event === 'charge.success') {
     const { reference, amount, customer } = event.data
     const userId = event.data.metadata?.user_id as string | undefined
     const email = event.data.metadata?.email as string | undefined
-
-    // Resolve Supabase profile UUID
     const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-fA-F-]{36}$/.test(v)
     let resolvedUserId: string | undefined = isUuid(userId) ? userId : undefined
 
@@ -46,12 +43,9 @@ serve(async (req) => {
       return new Response('Webhook processed, but no matching user found', { status: 200 })
     }
 
-    // Paystack reports `amount` in the currency's smallest unit (cents for USD)
     const amountSubunits = amount as number;
     const wholeDollars = Math.floor(amountSubunits / 100);
-    const creditToAdd = wholeDollars * 2; // 1 USD = 2 credits
-
-    // 3. Update user's credit balance and log transaction
+    const creditToAdd = wholeDollars * 2; // 1 USD   = 2 credits
     const { error: rpcError } = await supabaseAdmin.rpc('add_credit', {
         p_user_id: resolvedUserId,
         p_credit_to_add: creditToAdd
@@ -62,7 +56,6 @@ serve(async (req) => {
         return new Response('Error updating credit', { status: 500 });
     }
 
-    // Log the transaction for auditing
     await supabaseAdmin.from('transactions').insert({
         user_id: resolvedUserId,
         amount: amountSubunits,
