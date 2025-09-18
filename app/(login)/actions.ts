@@ -276,10 +276,14 @@ export async function signOut() {
 
 export async function signInWithOAuth(provider: 'google' | 'github') {
   const supabase = await getServerSupabase();
+  const redirectTo = `${process.env.BASE_URL}/auth/callback?next=/analytics`;
+  const isGitHub = provider === 'github';
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: `${process.env.BASE_URL}/auth/callback`
+      redirectTo,
+      // GitHub sometimes requires explicit email scope for profile retrieval
+      ...(isGitHub ? { scopes: 'user:email' } : {})
     }
   });
 

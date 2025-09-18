@@ -1,10 +1,10 @@
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users } from './schema';
-import { getServerSupabase } from '@/lib/supabase/nextServer';
+import { getReadOnlyServerSupabase } from '@/lib/supabase/nextServer';
 
 export async function getUser() {
-  const supabase = await getServerSupabase();
+  const supabase = await getReadOnlyServerSupabase();
   const { data: auth } = await supabase.auth.getUser();
   const email = auth.user?.email;
   if (!email) return null;
