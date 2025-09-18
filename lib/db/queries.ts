@@ -1,6 +1,6 @@
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, users } from './schema';
+import { activityLogs, users, profiles } from './schema';
 import { getReadOnlyServerSupabase } from '@/lib/supabase/nextServer';
 
 export async function getUser() {
@@ -25,6 +25,32 @@ export async function getUser() {
     return rows[0] ?? null;
   } catch (error) {
     console.error('Error in getUser():', error);
+    return null;
+  }
+}
+
+export async function getProfile() {
+  try {
+    const supabase = await getReadOnlyServerSupabase();
+    const { data: auth, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('Supabase auth error:', error);
+      return null;
+    }
+    
+    if (!auth.user?.id) return null;
+
+    // Return the profile with UUID id that matches Supabase auth user id
+    const rows = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, auth.user.id))
+      .limit(1);
+
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error('Error in getProfile():', error);
     return null;
   }
 }

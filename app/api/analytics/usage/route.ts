@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { liteLLMClient } from '@/lib/litellm/client';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase } from '@/lib/supabase/nextServer';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -14,27 +15,46 @@ const supabaseAdmin = createClient(
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('Analytics usage request started');
+
     const user = await getUser();
     if (!user) {
+      console.log('User not found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('User authenticated:', user.id);
+
+    // Get Supabase user ID (UUID) for usage_logs queries
+    const supabase = await getServerSupabase();
+    const { data: authUser } = await supabase.auth.getUser();
+    if (!authUser.user) {
+      console.log('Supabase auth user not found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.log('Supabase user ID:', authUser.user.id);
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('start_date');
-    const endDate = searchParams.get('end_date');
+    const startDateParam = searchParams.get('start_date');
+    const endDateParam = searchParams.get('end_date');
     const model = searchParams.get('model');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = Math.min(parseInt(searchParams.get('page_size') || '50'), 100);
+
+    // Set default date range to last 30 days if not provided
+    const endDate = endDateParam || new Date().toISOString().split('T')[0]; // Today
+    const startDate = startDateParam || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days ago
 
     // Get user's virtual keys for filtering
     const { data: userKeys, error: keysError } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, key, litellm_key_id')
-      .eq('user_id', user.id);
+      .eq('user_id', authUser.user.id);
 
     if (keysError) {
+      console.error('Virtual keys error:', keysError);
       throw keysError;
     }
+    console.log('Found virtual keys:', userKeys?.length || 0);
 
     // Build local analytics query
     let query = supabaseAdmin
@@ -43,7 +63,7 @@ export async function GET(request: NextRequest) {
         *,
         virtual_keys!inner(key, litellm_key_id)
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', authUser.user.id)
       .order('created_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -60,23 +80,25 @@ export async function GET(request: NextRequest) {
     const { data: localUsage, error: usageError } = await query;
 
     if (usageError) {
+      console.error('Usage query error:', usageError);
       throw usageError;
     }
+    console.log('Found usage logs:', localUsage?.length || 0);
 
-    // Get aggregated statistics
+    // Get aggregated statistics - use raw data and aggregate in JavaScript
     let statsQuery = supabaseAdmin
       .from('usage_logs')
       .select(`
-        cost_in_cents.sum(),
-        total_tokens.sum(),
-        prompt_tokens.sum(),
-        completion_tokens.sum(),
-        cache_read_input_tokens.sum(),
-        cache_creation_input_tokens.sum(),
+        cost_in_cents,
+        total_tokens,
+        prompt_tokens,
+        completion_tokens,
+        cache_read_input_tokens,
+        cache_creation_input_tokens,
         model,
         status
       `)
-      .eq('user_id', user.id);
+      .eq('user_id', authUser.user.id);
 
     if (startDate) {
       statsQuery = statsQuery.gte('created_at', startDate);
@@ -85,11 +107,49 @@ export async function GET(request: NextRequest) {
       statsQuery = statsQuery.lte('created_at', endDate);
     }
 
-    const { data: stats, error: statsError } = await statsQuery;
+    const { data: statsData, error: statsError } = await statsQuery;
 
     if (statsError) {
+      console.error('Stats query error:', statsError);
       throw statsError;
     }
+    console.log('Stats data retrieved:', statsData?.length || 0, 'records');
+
+    // Aggregate stats in JavaScript
+    const aggregatedStats = statsData?.reduce((acc, log) => {
+      acc.total_cost_cents += Number(log.cost_in_cents || 0);
+      acc.total_tokens += Number(log.total_tokens || 0);
+      acc.prompt_tokens += Number(log.prompt_tokens || 0);
+      acc.completion_tokens += Number(log.completion_tokens || 0);
+      acc.cache_read_input_tokens += Number(log.cache_read_input_tokens || 0);
+      acc.cache_creation_input_tokens += Number(log.cache_creation_input_tokens || 0);
+
+      // Count by model
+      if (log.model) {
+        if (!acc.models[log.model]) {
+          acc.models[log.model] = { count: 0, cost: 0, tokens: 0 };
+        }
+        acc.models[log.model].count++;
+        acc.models[log.model].cost += Number(log.cost_in_cents || 0);
+        acc.models[log.model].tokens += Number(log.total_tokens || 0);
+      }
+
+      // Count by status
+      if (log.status) {
+        acc.status_counts[log.status] = (acc.status_counts[log.status] || 0) + 1;
+      }
+
+      return acc;
+    }, {
+      total_cost_cents: 0,
+      total_tokens: 0,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+      models: {} as Record<string, { count: number; cost: number; tokens: number }>,
+      status_counts: {} as Record<string, number>
+    });
 
     // Calculate totals from local data
     const totals = localUsage.reduce((acc, log) => {
@@ -158,13 +218,11 @@ export async function GET(request: NextRequest) {
           // Get data for each synced key and aggregate
           const litellmPromises = syncedKeys.map(key =>
             liteLLMClient.withRetry(() =>
-              liteLLMClient.getSpendDaily({
+              liteLLMClient.getUserDailyActivity({
                 start_date: startDate || undefined,
                 end_date: endDate || undefined,
                 model: model || undefined,
-                api_key: key.litellm_key_id,
-                page: 1,
-                page_size: 1000 // Get all data for aggregation
+                api_key: key.litellm_key_id
               })
             ).catch(error => {
               console.warn(`Failed to get LiteLLM data for key ${key.key}:`, error);
@@ -176,12 +234,41 @@ export async function GET(request: NextRequest) {
           const validResults = litellmResults.filter(result => result !== null);
 
           if (validResults.length > 0) {
-            // Aggregate LiteLLM data
+            // Aggregate LiteLLM data across all dates
+            let totalSpend = 0;
+            let totalTokens = 0;
+            let totalRequests = 0;
+            const allResults: any[] = [];
+
+            validResults.forEach(result => {
+              if (result) {
+                // Aggregate data across all dates in the response
+                Object.values(result).forEach((dayData: any) => {
+                  if (dayData && typeof dayData === 'object') {
+                    totalSpend += dayData.spend || 0;
+                    totalTokens += dayData.total_tokens || 0;
+                    totalRequests += dayData.api_requests || 0;
+
+                    // Add individual day results
+                    allResults.push({
+                      date: Object.keys(result).find(key => result[key] === dayData),
+                      spend: dayData.spend,
+                      tokens: dayData.total_tokens,
+                      requests: dayData.api_requests,
+                      models: dayData.models,
+                      api_keys: dayData.api_keys,
+                      providers: dayData.providers
+                    });
+                  }
+                });
+              }
+            });
+
             litellmData = {
-              total_spend: validResults.reduce((sum, result) => sum + (result!.metadata.total_spend || 0), 0),
-              total_tokens: validResults.reduce((sum, result) => sum + (result!.metadata.total_tokens || 0), 0),
-              total_requests: validResults.reduce((sum, result) => sum + (result!.metadata.total_spend || 0), 0),
-              results: validResults.flatMap(result => result!.results)
+              total_spend: totalSpend,
+              total_tokens: totalTokens,
+              total_requests: totalRequests,
+              results: allResults
             };
           }
         } catch (error) {
@@ -189,6 +276,8 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    console.log('Preparing response with', localUsage.length, 'usage logs');
 
     return NextResponse.json({
       local_analytics: {
@@ -225,7 +314,8 @@ export async function GET(request: NextRequest) {
       metadata: {
         date_range: {
           start: startDate,
-          end: endDate
+          end: endDate,
+          is_default_range: !startDateParam || !endDateParam // Indicate if default range was used
         },
         filters: {
           model
@@ -237,6 +327,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Analytics error:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : 'Unknown error');
     return NextResponse.json({ 
       error: 'Failed to get usage analytics',
       details: error instanceof Error ? error.message : 'Unknown error'

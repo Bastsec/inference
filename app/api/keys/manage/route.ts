@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { liteLLMClient } from '@/lib/litellm/client';
+import { getServerSupabase } from '@/lib/supabase/nextServer';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -19,11 +20,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's keys from database
+    // Get Supabase user ID
+    const supabase = await getServerSupabase();
+    const { data: authUser } = await supabase.auth.getUser();
+    if (!authUser.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's keys from database using Supabase user ID
     const { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
-      .select('id, key, credit_balance, is_active, created_at')
-      .eq('user_id', user.id);
+      .select('id, key, user_id, credit_balance, is_active, created_at')
+      .eq('user_id', authUser.user.id);
 
     if (error) {
       throw error;
@@ -45,7 +53,7 @@ export async function GET() {
     return NextResponse.json({
       keys: formattedKeys,
       litellm_configured: liteLLMClient.isConfigured(),
-      litellm_base_url: process.env.LITELLM_BASE_URL || ''
+      litellm_base_url: `${process.env.SUPABASE_URL}/functions/v1/proxy-service`
     });
 
   } catch (error) {
@@ -82,33 +90,59 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Get Supabase user ID
+    const supabase = await getServerSupabase();
+    const { data: authUser } = await supabase.auth.getUser();
+    if (!authUser.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Check if user already has a key
     const { data: existingKey } = await supabaseAdmin
       .from('virtual_keys')
-      .select('id, key, credit_balance')
-      .eq('user_id', user.id)
+      .select('id, litellm_key_id')
+      .eq('user_id', authUser.user.id)
       .single();
 
-    if (existingKey && existingKey.key) {
+    if (existingKey && existingKey.litellm_key_id) {
       return NextResponse.json({
         error: 'Key already exists',
         details: 'You already have an API key. Please contact support to create additional keys.'
       }, { status: 400 });
     }
 
-    // Generate a simple API key
-    const apiKey = `basti_${user.id.toString().slice(0, 8)}_${Date.now().toString().slice(-6)}`;
     const initialCredits = 200; // $2.00 worth of credits in cents
 
     try {
+      // Create actual LiteLLM key
+      const liteLLMKey = await liteLLMClient.generateKey({
+        user_id: authUser.user.id,
+        key_alias: `User ${authUser.user.id.slice(0, 8)}`,
+        max_budget: 2.0, // $2.00 budget
+        budget_duration: '30d',
+        rpm_limit: 100,
+        tpm_limit: 100000
+      });
+
+      console.log('LiteLLM key created via API:', liteLLMKey);
+
+      // Store in our virtual_keys table
       if (existingKey) {
         // Update existing record
         await supabaseAdmin
           .from('virtual_keys')
           .update({
-            key: apiKey,
+            key: liteLLMKey.key,
             credit_balance: initialCredits,
-            is_active: true
+            is_active: true,
+            litellm_key_id: liteLLMKey.key,
+            max_budget: initialCredits,
+            budget_duration: '30d',
+            rpm_limit: 100,
+            tpm_limit: 100000,
+            model_restrictions: null, // No model restrictions - allow all models including gpt-5, model-router, gpt-5-chat
+            sync_status: 'synced',
+            last_synced_at: new Date().toISOString()
           })
           .eq('id', existingKey.id);
       } else {
@@ -116,27 +150,35 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin
           .from('virtual_keys')
           .insert({
-            user_id: user.id,
-            key: apiKey,
+            user_id: authUser.user.id,
+            key: liteLLMKey.key,
             credit_balance: initialCredits,
-            is_active: true
+            is_active: true,
+            litellm_key_id: liteLLMKey.key,
+            max_budget: initialCredits,
+            budget_duration: '30d',
+            rpm_limit: 100,
+            tpm_limit: 100000,
+            model_restrictions: null, // No model restrictions - allow all models including gpt-5, model-router, gpt-5-chat
+            sync_status: 'synced',
+            last_synced_at: new Date().toISOString()
           });
       }
 
       return NextResponse.json({
         success: true,
         key: {
-          api_key: apiKey,
+          api_key: liteLLMKey.key,
           credit_balance: initialCredits / 100, // Return in dollars
           message: 'API key created successfully! You have $2.00 in starter credits.'
         }
       });
 
-    } catch (dbError) {
-      console.error('Database key creation error:', dbError);
+    } catch (liteLLMError) {
+      console.error('Failed to create LiteLLM key via API:', liteLLMError);
       return NextResponse.json({
-        error: 'Failed to create API key',
-        details: dbError instanceof Error ? dbError.message : 'Unknown error'
+        error: 'Failed to create LiteLLM key',
+        details: liteLLMError instanceof Error ? liteLLMError.message : 'Unknown LiteLLM error'
       }, { status: 500 });
     }
 

@@ -19,7 +19,7 @@ export default async function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Link href="/analytics">
+        <Link href="/dashboard/analytics">
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-200">
             <div className="flex items-center">
               <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
@@ -34,15 +34,15 @@ export default async function DashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/keys">
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-200">
+        <Link href="/dashboard">
+          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-200">
             <div className="flex items-center">
               <div className="flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white">
                 <Key className="h-6 w-6" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">API Keys</h3>
-                <p className="text-sm text-gray-500">Manage your API keys</p>
+                <h3 className="text-lg font-medium text-gray-900">API Keys & Billing</h3>
+                <p className="text-sm text-gray-500">Manage keys and view billing</p>
               </div>
               <ArrowRight className="ml-auto h-5 w-5 text-gray-400" />
             </div>

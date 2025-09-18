@@ -49,7 +49,6 @@ export const teamMembers = pgTable('team_members', {
 export const activityLogs = pgTable('activity_logs', {
   id: serial('id').primaryKey(),
   teamId: integer('team_id')
-    .notNull()
     .references(() => teams.id),
   userId: integer('user_id').references(() => users.id),
   action: text('action').notNull(),
@@ -129,6 +128,23 @@ export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey(),
   email: text('email'),
   createdAt: timestamp('created_at').defaultNow(),
+  // LiteLLM Customer fields
+  alias: text('alias'),
+  blocked: boolean('blocked').default(false),
+  maxBudget: integer('max_budget'), // in cents
+  budgetId: text('budget_id'),
+  allowedModelRegion: varchar('allowed_model_region', { length: 10 }), // 'eu' or 'us'
+  defaultModel: text('default_model'),
+  budgetDuration: text('budget_duration'),
+  tpmLimit: integer('tpm_limit'),
+  rpmLimit: integer('rpm_limit'),
+  modelMaxBudget: text('model_max_budget'), // JSON object
+  maxParallelRequests: integer('max_parallel_requests'),
+  softBudget: integer('soft_budget'), // in cents
+  spend: integer('spend').default(0), // in cents
+  budgetResetAt: timestamp('budget_reset_at'),
+  litellmCustomerId: text('litellm_customer_id').unique(), // LiteLLM's internal customer ID
+  metadata: text('metadata'), // JSON object for additional data
 });
 
 export const virtualKeys = pgTable('virtual_keys', {

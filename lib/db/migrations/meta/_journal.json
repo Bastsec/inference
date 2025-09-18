@@ -15,6 +15,20 @@
       "when": 1758183482273,
       "tag": "0001_wooden_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758214891505,
+      "tag": "0002_daily_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758225224241,
+      "tag": "0003_gray_leo",
+      "breakpoints": true
     }
   ]
 }

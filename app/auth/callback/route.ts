@@ -4,6 +4,8 @@ import { db } from '@/lib/db/drizzle';
 import { users, teams, teamMembers, profiles, type NewUser, type NewTeam, type NewTeamMember } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getPostAuthRedirect, extractRedirectOptions } from '@/lib/auth/redirects';
+import { liteLLMClient } from '@/lib/litellm/client';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
 
         if (createdUser) {
           dbUser = createdUser;
-          
+
           // Create a new team for the user
           const newTeam: NewTeam = {
             name: `${safeEmail}'s Team`
@@ -71,6 +73,116 @@ export async function GET(request: NextRequest) {
             };
 
             await db.insert(teamMembers).values(newTeamMember);
+          }
+
+          // Automatically create API key for new OAuth users
+          try {
+            console.log('Creating API key for OAuth user:', user.id);
+
+            const supabaseAdmin = createClient(
+              process.env.SUPABASE_URL!,
+              process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+
+            // Create profile if it doesn't exist
+            const { data: existingProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('id')
+              .eq('id', user.id)
+              .single();
+
+            console.log('Existing profile check:', existingProfile);
+
+            if (!existingProfile) {
+              console.log('Creating profile for user:', user.id);
+              await supabaseAdmin
+                .from('profiles')
+                .insert({
+                  id: user.id,
+                  email: safeEmail
+                });
+            }
+
+            // Check if user already has a virtual key
+            const { data: existingKey } = await supabaseAdmin
+              .from('virtual_keys')
+              .select('id, litellm_key_id')
+              .eq('user_id', user.id)
+              .single();
+
+            console.log('Existing virtual key check:', existingKey);
+
+            if (!existingKey) {
+              console.log('Creating new LiteLLM key for user:', user.id);
+
+              try {
+                // Create actual LiteLLM key
+                const liteLLMKey = await liteLLMClient.generateKey({
+                  user_id: user.id,
+                  key_alias: `User ${user.id.slice(0, 8)}`,
+                  max_budget: 2.0, // $2.00 budget
+                  budget_duration: '30d',
+                  rpm_limit: 100,
+                  tpm_limit: 100000
+                  // Remove static model restrictions - allow all models including gpt-5, model-router, gpt-5-chat
+                });
+
+                console.log('LiteLLM key created:', liteLLMKey);
+
+                // Store in our virtual_keys table
+                await supabaseAdmin
+                  .from('virtual_keys')
+                  .insert({
+                    user_id: user.id,
+                    key: liteLLMKey.key, // Use the actual LiteLLM key as our virtual key
+                    credit_balance: 200, // $2.00 in cents
+                    is_active: true,
+                    litellm_key_id: liteLLMKey.key, // Store the LiteLLM key ID (same as key for now)
+                    max_budget: 200, // $2.00 in cents
+                    budget_duration: '30d',
+                    rpm_limit: 100,
+                    tpm_limit: 100000,
+                    model_restrictions: null, // No model restrictions - allow all models including gpt-5, model-router, gpt-5-chat
+                    sync_status: 'synced',
+                    last_synced_at: new Date().toISOString()
+                  });
+
+                // Create LiteLLM customer
+                await liteLLMClient.createCustomer({
+                  user_id: user.id,
+                  alias: user.email?.split('@')[0], // Use email prefix as alias
+                  blocked: false,
+                  max_budget: 2.0, // $2.00 budget
+                  budget_duration: '30d',
+                  spend: 0,
+                });
+
+                console.log('LiteLLM customer created for user:', user.id);
+              } catch (liteLLMError) {
+                console.error('Failed to create LiteLLM key:', liteLLMError);
+                // Fallback: create virtual key without LiteLLM integration
+                const fallbackKey = `basti_fallback_${user.id.slice(0, 8)}_${Date.now().toString().slice(-6)}`;
+                await supabaseAdmin
+                  .from('virtual_keys')
+                  .insert({
+                    user_id: user.id,
+                    key: fallbackKey,
+                    credit_balance: 200,
+                    is_active: true,
+                    max_budget: 200,
+                    budget_duration: '30d',
+                    rpm_limit: 100,
+                    tpm_limit: 100000,
+                    sync_status: 'pending'
+                  });
+                console.log('Created fallback OAuth virtual key:', fallbackKey);
+              }
+            } else {
+              console.log('User already has a virtual key');
+            }
+          } catch (keyError) {
+            console.error('Failed to create API key for OAuth user:', keyError);
+            // Don't fail the entire auth flow if key creation fails
           }
         }
       }

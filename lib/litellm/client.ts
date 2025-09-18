@@ -5,14 +5,14 @@
 export interface LiteLLMKeyGenerateRequest {
   user_id?: string;
   key_alias?: string;
-  max_budget?: number; // in dollars
-  budget_duration?: string; // e.g., "30d", "1h"
+  max_budget?: number; 
+  budget_duration?: string; 
   models?: string[];
   rpm_limit?: number;
   tpm_limit?: number;
   metadata?: Record<string, any>;
   guardrails?: string[];
-  duration?: string; // key validity duration
+  duration?: string; 
 }
 
 export interface LiteLLMKeyGenerateResponse {
@@ -47,8 +47,8 @@ export interface LiteLLMTokenCountResponse {
 }
 
 export interface LiteLLMSpendDailyRequest {
-  start_date?: string; // YYYY-MM-DD
-  end_date?: string; // YYYY-MM-DD
+  start_date?: string; 
+  end_date?: string; 
   model?: string;
   api_key?: string;
   page?: number;
@@ -91,6 +91,11 @@ class LiteLLMClient {
   private keyUpdateUrl: string;
   private tokenCounterUrl: string;
   private spendDailyUrl: string;
+  private modelsUrl: string;
+  private supportedParamsUrl: string;
+  private customerNewUrl: string;
+  private customerInfoUrl: string;
+  private userDailyActivityUrl: string;
 
   constructor() {
     this.baseUrl = process.env.LITELLM_BASE_URL || '';
@@ -99,10 +104,29 @@ class LiteLLMClient {
     this.keyUpdateUrl = process.env.LITELLM_KEY_UPDATE_URL || `${this.baseUrl}/key/update`;
     this.tokenCounterUrl = process.env.LITELLM_TOKEN_COUNTER_URL || `${this.baseUrl}/utils/token_counter`;
     this.spendDailyUrl = process.env.LITELLM_SPEND_DAILY_URL || `${this.baseUrl}/spend/daily`;
+    this.modelsUrl = process.env.LITELLM_MODELS_URL || `${this.baseUrl}/models`;
+    this.supportedParamsUrl = process.env.LITELLM_SUPPORTED_PARAMS_URL || `${this.baseUrl}/utils/supported_openai_params`;
+    this.customerNewUrl = process.env.LITELLM_CUSTOMER_NEW_URL || `${this.baseUrl}/customer/new`;
+    this.customerInfoUrl = process.env.LITELLM_CUSTOMER_INFO_URL || `${this.baseUrl}/customer/info`;
+    this.userDailyActivityUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_URL || `${this.baseUrl}/user/daily/activity/aggregated`;
 
     if (!this.baseUrl || !this.masterKey) {
       console.warn('LiteLLM configuration missing. Some features may not work.');
     }
+  }
+
+  // GET /models (optionally filter by litellm_model_id)
+  async getModels(litellm_model_id?: string): Promise<any> {
+    const url = litellm_model_id
+      ? `${this.modelsUrl}?litellm_model_id=${encodeURIComponent(litellm_model_id)}`
+      : this.modelsUrl;
+    return this.makeRequest<any>(url);
+  }
+
+  // GET /utils/supported_openai_params?model=...
+  async getSupportedOpenAIParams(model: string): Promise<any> {
+    const url = `${this.supportedParamsUrl}?model=${encodeURIComponent(model)}`;
+    return this.makeRequest<any>(url);
   }
 
   private async makeRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -158,6 +182,29 @@ class LiteLLMClient {
     return this.makeRequest<LiteLLMSpendDailyResponse>(url);
   }
 
+  async createCustomer(request: LiteLLMCustomerCreateRequest): Promise<LiteLLMCustomerCreateResponse> {
+    return this.makeRequest<LiteLLMCustomerCreateResponse>(this.customerNewUrl, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async getCustomerInfo(endUserId: string): Promise<LiteLLMCustomerInfoResponse> {
+    const url = `${this.customerInfoUrl}?end_user_id=${encodeURIComponent(endUserId)}`;
+    return this.makeRequest<LiteLLMCustomerInfoResponse>(url);
+  }
+
+  async getUserDailyActivity(request: LiteLLMUserDailyActivityRequest = {}): Promise<LiteLLMUserDailyActivityResponse> {
+    const params = new URLSearchParams();
+    if (request.start_date) params.append('start_date', request.start_date);
+    if (request.end_date) params.append('end_date', request.end_date);
+    if (request.model) params.append('model', request.model);
+    if (request.api_key) params.append('api_key', request.api_key);
+
+    const url = `${this.userDailyActivityUrl}?${params.toString()}`;
+    return this.makeRequest<LiteLLMUserDailyActivityResponse>(url);
+  }
+
   // Utility method to check if LiteLLM is configured
   isConfigured(): boolean {
     return !!(this.baseUrl && this.masterKey);
@@ -202,9 +249,112 @@ export class LiteLLMError extends Error {
   }
 }
 
-export class LiteLLMConfigError extends Error {
-  constructor(message: string = 'LiteLLM is not properly configured') {
-    super(message);
-    this.name = 'LiteLLMConfigError';
-  }
+export interface LiteLLMCustomerCreateRequest {
+  user_id: string;
+  alias?: string;
+  blocked?: boolean;
+  max_budget?: number;
+  budget_id?: string;
+  allowed_model_region?: 'eu' | 'us';
+  default_model?: string;
+  metadata?: Record<string, any>;
+  budget_duration?: string;
+  tpm_limit?: number;
+  rpm_limit?: number;
+  model_max_budget?: Record<string, any>;
+  max_parallel_requests?: number;
+  soft_budget?: number;
+  spend?: number;
+  budget_reset_at?: string;
+}
+
+export interface LiteLLMCustomerCreateResponse {
+  user_id: string;
+  blocked: boolean;
+  alias?: string;
+  spend: number;
+  allowed_model_region?: 'eu' | 'us';
+  default_model?: string;
+  litellm_budget_table?: {
+    budget_id?: string;
+    soft_budget?: number;
+    max_budget?: number;
+    max_parallel_requests?: number;
+    tpm_limit?: number;
+    rpm_limit?: number;
+    model_max_budget?: Record<string, any>;
+    budget_duration?: string;
+  };
+}
+
+export interface LiteLLMCustomerInfoResponse {
+  user_id: string;
+  blocked: boolean;
+  alias?: string;
+  spend: number;
+  allowed_model_region?: 'eu' | 'us';
+  default_model?: string;
+  litellm_budget_table: {
+    budget_id?: string;
+    soft_budget?: number;
+    max_budget?: number;
+    max_parallel_requests?: number;
+    tpm_limit?: number;
+    rpm_limit?: number;
+    model_max_budget?: Record<string, any>;
+    budget_duration?: string;
+    budget_reset_at?: string;
+  };
+}
+
+export interface LiteLLMUserDailyActivityRequest {
+  start_date?: string; // YYYY-MM-DD format
+  end_date?: string; // YYYY-MM-DD format
+  model?: string;
+  api_key?: string;
+}
+
+export interface LiteLLMUserDailyActivityResponse {
+  [date: string]: {
+    spend: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    cache_read_input_tokens: number;
+    cache_creation_input_tokens: number;
+    total_tokens: number;
+    api_requests: number;
+    models: {
+      [model: string]: {
+        spend: number;
+        prompt_tokens: number;
+        completion_tokens: number;
+        cache_read_input_tokens: number;
+        cache_creation_input_tokens: number;
+        total_tokens: number;
+        api_requests: number;
+      };
+    };
+    api_keys: {
+      [api_key: string]: {
+        spend: number;
+        prompt_tokens: number;
+        completion_tokens: number;
+        cache_read_input_tokens: number;
+        cache_creation_input_tokens: number;
+        total_tokens: number;
+        api_requests: number;
+      };
+    };
+    providers: {
+      [provider: string]: {
+        spend: number;
+        prompt_tokens: number;
+        completion_tokens: number;
+        cache_read_input_tokens: number;
+        cache_creation_input_tokens: number;
+        total_tokens: number;
+        api_requests: number;
+      };
+    };
+  };
 }

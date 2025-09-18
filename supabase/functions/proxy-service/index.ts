@@ -52,12 +52,32 @@ async function countTokens(request: TokenCountRequest, retries = 2): Promise<Tok
 }
 
 serve(async (req) => {
-  // 1. Extract virtual key and request body
-  const virtualKey = req.headers.get('Authorization')?.replace('Bearer ', '')
+  const url = new URL(req.url);
+  const path = url.pathname;
+
+  // Extract virtual key from Authorization header
+  const virtualKey = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!virtualKey) {
-    return new Response(JSON.stringify({ error: 'Missing API key' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'Missing API key' }), { status: 401 });
   }
-  const requestBody = await req.json()
+
+  // If this is a direct API call (not a passthrough), extract the request body
+  let requestBody = null;
+  let endpoint = '/v1/chat/completions'; // default
+
+  if (path.startsWith('/v1/')) {
+    // This is a direct API call like /v1/chat/completions
+    endpoint = path;
+    requestBody = await req.json().catch(() => null);
+  } else {
+    // This is the original proxy format
+    requestBody = await req.json();
+    endpoint = requestBody?.messages ? '/v1/chat/completions' : '/v1/completions';
+  }
+
+  if (!requestBody) {
+    return new Response(JSON.stringify({ error: 'Missing request body' }), { status: 400 });
+  }
 
   // 2. Authenticate the virtual key and check credit
   const supabaseAdmin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -88,13 +108,22 @@ serve(async (req) => {
 
   try {
     // 4. Forward the request to LiteLLM via HTTP
-    const endpoint = requestBody?.messages ? '/v1/chat/completions' : '/v1/completions'
+    // Use the endpoint from the URL path if it's a direct API call, otherwise determine from request body
+    let endpoint: string;
+    if (path.startsWith('/v1/')) {
+      endpoint = path; // Direct API call like /v1/chat/completions
+    } else {
+      endpoint = requestBody?.messages ? '/v1/chat/completions' : '/v1/completions';
+    }
     const url = `${LITELLM_BASE_URL}${endpoint}`
+    
+    // Use the actual LiteLLM key - no fallback to master key
+    const authHeader = `Bearer ${keyData.litellm_key_id}`;
     const llmRes = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LITELLM_MASTER_KEY}`
+        'Authorization': authHeader
       },
       body: JSON.stringify(requestBody)
     })
