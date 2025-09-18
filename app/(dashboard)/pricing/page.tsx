@@ -1,6 +1,6 @@
-import { topUpAction } from '@/lib/payments/actions';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
-import { SubmitButton } from './submit-button';
 
 export default async function PricingPage() {
   return (
@@ -12,8 +12,9 @@ export default async function PricingPage() {
 
       <div className="grid md:grid-cols-3 gap-8">
         <TopUpCard
-          name="Starter"
+          name="Basic"
           amountUsd={5}
+          plan="basic"
           features={[
             'Entry plan',
             'Immediate access',
@@ -21,8 +22,9 @@ export default async function PricingPage() {
           ]}
         />
         <TopUpCard
-          name="Basic"
+          name="Pro"
           amountUsd={10}
+          plan="pro"
           features={[
             'For active usage',
             'Priority processing',
@@ -30,8 +32,9 @@ export default async function PricingPage() {
           ]}
         />
         <TopUpCard
-          name="Pro"
+          name="Advanced"
           amountUsd={20}
+          plan="advanced"
           features={[
             'Larger top-up',
             'Priority processing',
@@ -49,17 +52,17 @@ function TopUpCard({
   name,
   amountUsd,
   features,
+  plan,
 }: {
   name: string;
   amountUsd: number;
   features: string[];
+  plan: 'basic' | 'pro' | 'advanced';
 }) {
   return (
     <div className="pt-6">
       <h2 className="text-2xl font-medium text-gray-900 mb-2">{name}</h2>
-      <p className="text-4xl font-medium text-gray-900 mb-6">
-        ${'{'}amountUsd.toLocaleString('en-US'){'}'}
-      </p>
+      <p className="text-4xl font-medium text-gray-900 mb-6">${amountUsd.toLocaleString('en-US')}</p>
       <ul className="space-y-4 mb-8">
         {features.map((feature, index) => (
           <li key={index} className="flex items-start">
@@ -68,10 +71,11 @@ function TopUpCard({
           </li>
         ))}
       </ul>
-      <form action={topUpAction}>
-        <input type="hidden" name="amount" value={amountUsd} />
-        <SubmitButton />
-      </form>
+      <Button asChild variant="outline" className="w-full rounded-full">
+        <Link href={`/api/checkout/start?plan=${plan}`}>
+          Get Started
+        </Link>
+      </Button>
     </div>
   );
 }

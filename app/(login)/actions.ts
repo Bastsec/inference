@@ -123,7 +123,7 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     redirect(authorizationUrl);
   }
 
-  redirect('/dashboard');
+  redirect('/analytics');
 });
 
 const signUpSchema = z.object({

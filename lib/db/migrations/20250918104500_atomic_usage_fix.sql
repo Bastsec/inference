@@ -1,3 +1,4 @@
+-- Active: 1758185681048@@aws-1-eu-north-1.pooler.supabase.com@6543@postgres@public
 -- Update atomic RPC to strictly all-or-nothing semantics
 -- If credit decrement fails, the entire transaction (including usage insert) rolls back
 
