@@ -274,10 +274,17 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
-export async function signInWithOAuth(provider: 'google' | 'github') {
+export async function signInWithOAuth(provider: 'google' | 'github', source?: string, next?: string) {
   const supabase = await getServerSupabase();
-  const redirectTo = `${process.env.BASE_URL}/auth/callback?next=/analytics`;
+  
+  // Build callback URL with source and next parameters
+  const callbackParams = new URLSearchParams();
+  if (next) callbackParams.set('next', next);
+  if (source) callbackParams.set('source', source);
+  
+  const redirectTo = `${process.env.BASE_URL}/auth/callback?${callbackParams.toString()}`;
   const isGitHub = provider === 'github';
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {

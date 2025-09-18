@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
+import { buildSignInUrl } from '@/lib/auth/redirects';
 
 const PLAN_URLS: Record<string, string> = {
   basic: 'https://paystack.shop/pay/1v885uasel',
@@ -14,7 +15,11 @@ export async function GET(request: NextRequest) {
   // Ensure user is signed in before redirecting to checkout
   const user = await getUser();
   if (!user) {
-    return NextResponse.redirect(`${origin}/sign-in?redirect=/pricing`);
+    const signInUrl = buildSignInUrl({ 
+      source: 'pricing', 
+      next: '/pricing' 
+    });
+    return NextResponse.redirect(`${origin}${signInUrl}`);
   }
 
   const target = PLAN_URLS[plan];

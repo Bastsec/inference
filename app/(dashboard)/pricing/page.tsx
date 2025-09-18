@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
+import { AuthTest } from '@/components/auth-test';
 
 export default async function PricingPage() {
   return (
@@ -44,6 +45,15 @@ export default async function PricingPage() {
       </div>
 
       {/* Custom top-up removed; only fixed plan amounts are allowed */}
+      
+      {/* Test component for OAuth flow from pricing page */}
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold mb-4">Authentication Test</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Test OAuth sign-in from pricing page - should redirect back to pricing after authentication.
+        </p>
+        <AuthTest source="pricing" next="/pricing" />
+      </section>
     </main>
   );
 }

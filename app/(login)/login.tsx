@@ -15,6 +15,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
+  const source = searchParams.get('source'); // Track where user came from
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     mode === 'signin' ? signIn : signUp,
     { error: '' }
@@ -122,7 +123,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           <div className="mt-6 grid grid-cols-2 gap-3">
             <Button
               type="button"
-              onClick={() => signInWithOAuth('google')}
+              onClick={() => signInWithOAuth('google', source || undefined, redirect || undefined)}
               className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-full shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               variant="outline"
             >
@@ -149,7 +150,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
 
             <Button
               type="button"
-              onClick={() => signInWithOAuth('github')}
+              onClick={() => signInWithOAuth('github', source || undefined, redirect || undefined)}
               className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-full shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               variant="outline"
             >

@@ -3,11 +3,15 @@ import { getServerSupabase } from '@/lib/supabase/nextServer';
 import { db } from '@/lib/db/drizzle';
 import { users, teams, teamMembers, profiles, type NewUser, type NewTeam, type NewTeamMember } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { signToken } from '@/lib/auth/session';
+import { getPostAuthRedirect, extractRedirectOptions } from '@/lib/auth/redirects';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/analytics';
+  
+  // Extract redirect options from URL parameters
+  const redirectOptions = extractRedirectOptions(searchParams);
 
   if (code) {
     const supabase = await getServerSupabase();
@@ -29,6 +33,8 @@ export async function GET(request: NextRequest) {
         .where(eq(users.email, safeEmail))
         .limit(1);
 
+      let dbUser = existingUser[0];
+
       if (existingUser.length === 0) {
         // Create new user in local database
         const newUser: NewUser = {
@@ -40,6 +46,8 @@ export async function GET(request: NextRequest) {
         const [createdUser] = await db.insert(users).values(newUser).returning();
 
         if (createdUser) {
+          dbUser = createdUser;
+          
           // Create a new team for the user
           const newTeam: NewTeam = {
             name: `${safeEmail}'s Team`
@@ -60,7 +68,31 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      // Create session cookie for the middleware
+      if (dbUser) {
+        const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const sessionData = {
+          user: { id: dbUser.id },
+          expires: expiresInOneDay.toISOString(),
+        };
+        const encryptedSession = await signToken(sessionData);
+
+        // Determine redirect destination using centralized logic
+        const redirectTo = getPostAuthRedirect(redirectOptions);
+
+        const response = NextResponse.redirect(`${origin}${redirectTo}`);
+        
+        // Set the session cookie
+        response.cookies.set('session', encryptedSession, {
+          expires: expiresInOneDay,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        });
+
+        return response;
+      }
     }
   }
 

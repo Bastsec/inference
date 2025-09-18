@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { signToken, verifyToken } from '@/lib/auth/session';
+import { buildSignInUrl } from '@/lib/auth/redirects';
 
-const protectedRoutes = '/dashboard';
+const protectedRoutes = ['/dashboard', '/analytics'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session');
-  const isProtectedRoute = pathname.startsWith(protectedRoutes);
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
   if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+    // Build sign-in URL with current path as redirect
+    const signInUrl = buildSignInUrl({ next: pathname });
+    return NextResponse.redirect(new URL(signInUrl, request.url));
   }
 
   let res = NextResponse.next();
@@ -35,7 +38,8 @@ export async function middleware(request: NextRequest) {
       console.error('Error updating session:', error);
       res.cookies.delete('session');
       if (isProtectedRoute) {
-        return NextResponse.redirect(new URL('/sign-in', request.url));
+        const signInUrl = buildSignInUrl({ next: pathname });
+        return NextResponse.redirect(new URL(signInUrl, request.url));
       }
     }
   }
