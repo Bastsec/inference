@@ -35,10 +35,14 @@ class LiteLLMMonitoring {
     failed_sync_percentage: 20,
     consecutive_failures: 3
   }) {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    }
+
+    this.supabase = createClient(supabaseUrl, supabaseKey);
     this.alertThresholds = alertThresholds;
   }
 

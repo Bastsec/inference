@@ -13,11 +13,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Add admin role check
-    // if (user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
-
+    if (user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const hours = parseInt(searchParams.get('hours') || '24');

@@ -274,6 +274,25 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+export async function signInWithOAuth(provider: 'google' | 'github') {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${process.env.BASE_URL}/auth/callback`
+    }
+  });
+
+  if (error) {
+    console.error('OAuth error:', error);
+    return;
+  }
+
+  if (data.url) {
+    redirect(data.url);
+  }
+}
+
 const updatePasswordSchema = z.object({
   currentPassword: z.string().min(8).max(100),
   newPassword: z.string().min(8).max(100),

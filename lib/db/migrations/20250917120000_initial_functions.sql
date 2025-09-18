@@ -34,9 +34,9 @@ BEGIN
   VALUES (
     new.id, 
     'placeholder-' || substr(md5(random()::text), 0, 25), 
-    0, -- Not used in simplified version
+    200, -- $2.00 initial credit for new users
     true,
-    1000, -- $10.00 default budget in cents
+    200, -- $2.00 initial budget in cents (will be increased after payment)
     '30d', -- 30 day budget cycle
     100,   -- 100 requests per minute default
     10000, -- 10k tokens per minute default

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Copy, Eye, EyeOff, RefreshCw, ExternalLink } from 'lucide-react';
+import { Copy, Eye, EyeOff, RefreshCw, ExternalLink, CreditCard, AlertTriangle } from 'lucide-react';
 
 interface LiteLLMKey {
   id: string;
@@ -17,6 +17,8 @@ interface LiteLLMKey {
   is_active: boolean;
   created_at: string;
   expires_at?: string;
+  credit_balance: number;
+  needs_payment: boolean;
 }
 
 interface KeyData {
@@ -130,6 +132,65 @@ export default function KeyManagementPage() {
         </Card>
       )}
 
+      {/* Credit Balance and Payment Prompt */}
+      {keyData?.keys && keyData.keys.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {keyData.keys.map((key) => (
+            <Card key={`balance-${key.id}`} className={key.needs_payment ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
+              <CardHeader>
+                <CardTitle className={`flex items-center space-x-2 ${key.needs_payment ? 'text-red-800' : 'text-green-800'}`}>
+                  {key.needs_payment ? (
+                    <AlertTriangle className="h-5 w-5" />
+                  ) : (
+                    <CreditCard className="h-5 w-5" />
+                  )}
+                  <span>Credit Balance</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Available Credits:</span>
+                    <span className={`text-lg font-bold ${key.needs_payment ? 'text-red-600' : 'text-green-600'}`}>
+                      ${key.credit_balance.toFixed(2)}
+                    </span>
+                  </div>
+                  
+                  {key.needs_payment ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-red-700">
+                        Your credits are exhausted. Add more credits to continue using the API.
+                      </p>
+                      <Button 
+                        className="w-full bg-red-600 hover:bg-red-700" 
+                        onClick={() => window.location.href = '/pricing'}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Add Credits
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-green-700">
+                        You have sufficient credits. Your API key is ready to use.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-green-300 text-green-700 hover:bg-green-100"
+                        onClick={() => window.location.href = '/pricing'}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Add More Credits
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <div className="grid gap-6">
         <Card>
           <CardHeader>
@@ -159,7 +220,7 @@ export default function KeyManagementPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Budget: ${key.max_budget} • Duration: {key.budget_duration}
+                          Budget: ${key.max_budget} • Duration: {key.budget_duration} • Credits: ${key.credit_balance.toFixed(2)}
                         </p>
                         {key.expires_at && (
                           <p className="text-sm text-muted-foreground">

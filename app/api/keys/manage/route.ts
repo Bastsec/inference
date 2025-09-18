@@ -22,7 +22,7 @@ export async function GET() {
     // Get user's keys from database
     const { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
-      .select('id, litellm_key_id, max_budget, budget_duration, is_active, created_at')
+      .select('id, litellm_key_id, max_budget, budget_duration, is_active, created_at, credit_balance')
       .eq('user_id', user.id);
 
     if (error) {
@@ -35,11 +35,13 @@ export async function GET() {
       .map(key => ({
         id: key.id,
         litellm_key: key.litellm_key_id,
-        key_alias: `User ${user.id.substring(0, 8)} Key`,
+        key_alias: `User ${user.id.toString().slice(0, 8)} Key`,
         max_budget: key.max_budget ? key.max_budget / 100 : 0, // Convert cents to dollars
         budget_duration: key.budget_duration || '30d',
         is_active: key.is_active,
-        created_at: key.created_at
+        created_at: key.created_at,
+        credit_balance: key.credit_balance ? key.credit_balance / 100 : 0, // Convert cents to dollars
+        needs_payment: key.credit_balance <= 0 // Flag when credits are exhausted
       }));
 
     return NextResponse.json({
@@ -82,13 +84,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Check user's current credit balance
+    const { data: userKey } = await supabaseAdmin
+      .from('virtual_keys')
+      .select('credit_balance')
+      .eq('user_id', user.id)
+      .single();
+
+    const creditBalance = userKey?.credit_balance || 0;
+    const budgetInDollars = creditBalance > 0 ? creditBalance / 100 : 2.0; // Use $2 default for new users
+
     try {
       // Create key in LiteLLM
       const litellmResponse = await liteLLMClient.withRetry(() =>
         liteLLMClient.generateKey({
           user_id: user.id.toString(),
-          key_alias: `User ${user.id.substring(0, 8)} Key`,
-          max_budget: 10.0, // $10 default budget
+          key_alias: `User ${user.id.toString().slice(0, 8)} Key`,
+          max_budget: budgetInDollars, // Use available credit balance or $2 default
           budget_duration: '30d',
           rpm_limit: 100,
           tpm_limit: 10000,
@@ -112,7 +124,7 @@ export async function POST(request: NextRequest) {
           .from('virtual_keys')
           .update({
             litellm_key_id: litellmResponse.key,
-            max_budget: 1000, // $10 in cents
+            max_budget: Math.round(budgetInDollars * 100), // Convert dollars to cents
             budget_duration: '30d',
             rpm_limit: 100,
             tpm_limit: 10000,
@@ -126,10 +138,10 @@ export async function POST(request: NextRequest) {
           .from('virtual_keys')
           .insert({
             user_id: user.id,
-            key: `proxy-${user.id.substring(0, 8)}-${Date.now()}`, // Generate a simple key for reference
+            key: `proxy-${user.id.toString().slice(0, 8)}-${Date.now()}`, // Generate a simple key for reference
             litellm_key_id: litellmResponse.key,
-            credit_balance: 0, // Not used in simplified version
-            max_budget: 1000, // $10 in cents
+            credit_balance: Math.round(budgetInDollars * 100), // Set initial credit balance
+            max_budget: Math.round(budgetInDollars * 100), // Convert dollars to cents
             budget_duration: '30d',
             rpm_limit: 100,
             tpm_limit: 10000,
