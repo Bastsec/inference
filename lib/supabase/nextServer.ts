@@ -32,14 +32,19 @@ export async function getServerSupabase() {
   });
 }
 
-// Read-only client: for Server Components or any context where cookies cannot be modified
-// This prevents Next.js from throwing when Supabase tries to write refresh/session cookies.
+
 export async function getReadOnlyServerSupabase() {
   const url = process.env.SUPABASE_URL;
   const anon = process.env.SUPABASE_ANON_KEY;
+  
   if (!url || !anon) {
+    console.error('Missing Supabase environment variables:', { 
+      hasUrl: !!url, 
+      hasAnon: !!anon 
+    });
     throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
   }
+  
   const cookieStore = await cookies();
   return createServerClient(url, anon, {
     cookies: {

@@ -1,59 +1,50 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
-import { AuthTest } from '@/components/auth-test';
 
 export default async function PricingPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
       <section>
-        <h1 className="text-3xl font-semibold mb-2">Top up credits</h1>
-        <p className="text-sm text-gray-600">Use Paystack to add credits to your account (USD). Credits are consumed when you call the LLM proxy.</p>
+        <h1 className="text-3xl font-semibold mb-2">Buy Credits at 50% Off</h1>
+        <p className="text-sm text-gray-600">Purchase credits to access premium AI models at half the cost. Credits are consumed when you make API calls to OpenAI models.</p>
       </section>
 
       <div className="grid md:grid-cols-3 gap-8">
         <TopUpCard
-          name="Basic"
-          amountUsd={5}
+          name="Starter"
+          amountUsd={10}
           plan="basic"
           features={[
-            'Entry plan',
-            'Immediate access',
-            'Email support',
+            '$20 worth of API credits',
+            '50% savings vs OpenAI',
+            'All premium models',
           ]}
         />
         <TopUpCard
           name="Pro"
-          amountUsd={10}
+          amountUsd={50}
           plan="pro"
           features={[
-            'For active usage',
-            'Priority processing',
-            'Email support',
+            '$100 worth of API credits',
+            '50% savings vs OpenAI',
+            'Priority support',
           ]}
         />
         <TopUpCard
-          name="Advanced"
-          amountUsd={20}
+          name="Enterprise"
+          amountUsd={200}
           plan="advanced"
           features={[
-            'Larger top-up',
-            'Priority processing',
-            'Email support',
+            '$400 worth of API credits',
+            '50% savings vs OpenAI',
+            'Dedicated support',
           ]}
         />
       </div>
 
       {/* Custom top-up removed; only fixed plan amounts are allowed */}
       
-      {/* Test component for OAuth flow from pricing page */}
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Authentication Test</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Test OAuth sign-in from pricing page - should redirect back to pricing after authentication.
-        </p>
-        <AuthTest source="pricing" next="/pricing" />
-      </section>
     </main>
   );
 }

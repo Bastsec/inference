@@ -1,12 +1,12 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { getUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 
 export const metadata: Metadata = {
-  title: 'Next.js SaaS Starter',
-  description: 'Get started quickly with Next.js, Postgres, and Stripe.'
+  title: 'Basti - Premium AI Models at 50% Off',
+  description: 'Access OpenAI GPT-4o, GPT-4 Turbo, and more at half the cost. Same quality, better pricing.'
 };
 
 export const viewport: Viewport = {
@@ -31,8 +31,7 @@ export default function RootLayout({
             fallback: {
               // We do NOT await here
               // Only components that read this data will suspend
-              '/api/user': getUser(),
-              '/api/team': getTeamForUser()
+              '/api/user': getUser()
             }
           }}
         >

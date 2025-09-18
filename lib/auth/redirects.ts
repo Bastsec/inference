@@ -37,7 +37,7 @@ export function getPostAuthRedirect(options: RedirectOptions): string {
     return '/analytics';
   }
 
-  // Default fallback
+  // Default redirect to dashboard
   return '/dashboard';
 }
 

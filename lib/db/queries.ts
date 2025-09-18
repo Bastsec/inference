@@ -1,64 +1,36 @@
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users } from './schema';
+import { activityLogs, users } from './schema';
 import { getReadOnlyServerSupabase } from '@/lib/supabase/nextServer';
 
 export async function getUser() {
-  const supabase = await getReadOnlyServerSupabase();
-  const { data: auth } = await supabase.auth.getUser();
-  const email = auth.user?.email;
-  if (!email) return null;
+  try {
+    const supabase = await getReadOnlyServerSupabase();
+    const { data: auth, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('Supabase auth error:', error);
+      return null;
+    }
+    
+    const email = auth.user?.email;
+    if (!email) return null;
 
-  const rows = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.email, email), isNull(users.deletedAt)))
-    .limit(1);
+    const rows = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, email), isNull(users.deletedAt)))
+      .limit(1);
 
-  return rows[0] ?? null;
-}
-
-export async function getTeamByStripeCustomerId(customerId: string) {
-  const result = await db
-    .select()
-    .from(teams)
-    .where(eq(teams.stripeCustomerId, customerId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : null;
-}
-
-export async function updateTeamSubscription(
-  teamId: number,
-  subscriptionData: {
-    stripeSubscriptionId: string | null;
-    stripeProductId: string | null;
-    planName: string | null;
-    subscriptionStatus: string;
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error('Error in getUser():', error);
+    return null;
   }
-) {
-  await db
-    .update(teams)
-    .set({
-      ...subscriptionData,
-      updatedAt: new Date()
-    })
-    .where(eq(teams.id, teamId));
 }
 
-export async function getUserWithTeam(userId: number) {
-  const result = await db
-    .select({
-      user: users,
-      teamId: teamMembers.teamId
-    })
-    .from(users)
-    .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
-    .where(eq(users.id, userId))
-    .limit(1);
 
-  return result[0];
-}
+
 
 export async function getActivityLogs() {
   const user = await getUser();
@@ -81,32 +53,3 @@ export async function getActivityLogs() {
     .limit(10);
 }
 
-export async function getTeamForUser() {
-  const user = await getUser();
-  if (!user) {
-    return null;
-  }
-
-  const result = await db.query.teamMembers.findFirst({
-    where: eq(teamMembers.userId, user.id),
-    with: {
-      team: {
-        with: {
-          teamMembers: {
-            with: {
-              user: {
-                columns: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-
-  return result?.team || null;
-}
