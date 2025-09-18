@@ -150,8 +150,8 @@ serve(async (req) => {
       costInCents = 1
     }
 
-    // 7. Log detailed usage metrics
-    const { data: logId } = await supabaseAdmin.rpc('log_usage', {
+    // 7-8. Atomically log usage and decrement credit
+    const { data: logId, error: atomicError } = await supabaseAdmin.rpc('log_usage_and_decrement', {
       p_user_id: keyData.user_id,
       p_virtual_key_id: keyData.id,
       p_model: requestedModel || 'unknown',
@@ -161,21 +161,17 @@ serve(async (req) => {
       p_cost_in_cents: costInCents,
       p_litellm_model_id: llmRes.headers.get('x-litellm-model-id') || null,
       p_provider: llmRes.headers.get('x-litellm-provider') || null,
-      p_request_duration_ms: requestDuration
-    });
-    
-    if (logId) usageLogId = logId;
-
-    // 8. Decrement the user's balance (atomic operation)
-    const { error: rpcError } = await supabaseAdmin.rpc('decrement_credit', {
-        key_id: virtualKey,
-        amount: costInCents
+      p_request_duration_ms: requestDuration,
+      p_key: virtualKey
     });
 
-    if (rpcError) {
-      console.error('Failed to decrement credit:', rpcError);
-      throw rpcError;
+    if (atomicError) {
+      console.error('Atomic usage+credit RPC failed:', atomicError);
+      // The DB function marks the usage as voided when the decrement fails.
+      return new Response(JSON.stringify({ error: 'Failed to commit usage and credit deduction' }), { status: 500 })
     }
+
+    if (logId) usageLogId = logId as string;
 
     // 9. Return the LLM's response to the user with optional cost info
     const responseHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
