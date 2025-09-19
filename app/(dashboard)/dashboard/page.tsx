@@ -1,17 +1,12 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Suspense } from 'react';
-import { CreditCard, TrendingUp, Zap, DollarSign } from 'lucide-react';
-import Link from 'next/link';
+import { TrendingUp, Zap, DollarSign } from 'lucide-react';
 import useSWR from 'swr';
 import KeyManagement from '@/components/KeyManagement';
+import CreditBalanceCard from '@/components/billing/CreditBalanceCard';
 
 type ActionState = {
   error?: string;
@@ -26,40 +21,6 @@ function CreditBalanceSkeleton() {
       <CardHeader>
         <CardTitle>Credit Balance</CardTitle>
       </CardHeader>
-    </Card>
-  );
-}
-
-function CreditBalance() {
-  const { data: keysData } = useSWR('/api/keys/manage', fetcher);
-
-  const totalCredits = keysData?.keys?.reduce((sum: number, key: any) => sum + (key.credit_balance || 0), 0) || 0;
-
-  return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle>Credit Balance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <div className="mb-4 sm:mb-0">
-              <p className="text-3xl font-bold text-green-600">
-                ${totalCredits.toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Available credits for API usage
-              </p>
-            </div>
-            <Link href="/pricing">
-              <Button type="button" className="bg-blue-600 hover:bg-blue-700">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Buy More Credits
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </CardContent>
     </Card>
   );
 }
@@ -164,7 +125,7 @@ export default function BillingPage() {
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium mb-6">Billing & Usage</h1>
       <Suspense fallback={<CreditBalanceSkeleton />}>
-        <CreditBalance />
+        <CreditBalanceCard />
       </Suspense>
       <Suspense fallback={<UsageStatsSkeleton />}>
         <UsageStats />

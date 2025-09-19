@@ -13,17 +13,17 @@ export default async function PricingPage() {
       <div className="grid md:grid-cols-3 gap-8">
         <TopUpCard
           name="Starter"
-          amountUsd={10}
+          amountUsd={5}
           plan="basic"
           features={[
-            '$20 worth of API credits',
+            '$5 worth of API credits',
             '50% savings vs OpenAI',
             'All premium models',
           ]}
         />
         <TopUpCard
           name="Pro"
-          amountUsd={50}
+          amountUsd={15}
           plan="pro"
           features={[
             '$100 worth of API credits',
@@ -32,8 +32,8 @@ export default async function PricingPage() {
           ]}
         />
         <TopUpCard
-          name="Enterprise"
-          amountUsd={200}
+          name="Advanced"
+          amountUsd={20}
           plan="advanced"
           features={[
             '$400 worth of API credits',

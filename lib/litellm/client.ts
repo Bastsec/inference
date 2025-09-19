@@ -96,6 +96,7 @@ class LiteLLMClient {
   private customerNewUrl: string;
   private customerInfoUrl: string;
   private userDailyActivityUrl: string;
+  private userDailyActivityAggregatedUrl: string;
 
   constructor() {
     this.baseUrl = process.env.LITELLM_BASE_URL || '';
@@ -108,7 +109,9 @@ class LiteLLMClient {
     this.supportedParamsUrl = process.env.LITELLM_SUPPORTED_PARAMS_URL || `${this.baseUrl}/utils/supported_openai_params`;
     this.customerNewUrl = process.env.LITELLM_CUSTOMER_NEW_URL || `${this.baseUrl}/customer/new`;
     this.customerInfoUrl = process.env.LITELLM_CUSTOMER_INFO_URL || `${this.baseUrl}/customer/info`;
-    this.userDailyActivityUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_URL || `${this.baseUrl}/user/daily/activity/aggregated`;
+    // Default to non-aggregated daily activity per provided specs
+    this.userDailyActivityUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_URL || `${this.baseUrl}/user/daily/activity`;
+    this.userDailyActivityAggregatedUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_AGG_URL || `${this.baseUrl}/user/daily/activity/aggregated`;
 
     if (!this.baseUrl || !this.masterKey) {
       console.warn('LiteLLM configuration missing. Some features may not work.');
@@ -130,6 +133,9 @@ class LiteLLMClient {
   }
 
   private async makeRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const timeoutMs = Number(process.env.LITELLM_TIMEOUT_MS || 2500);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -137,7 +143,8 @@ class LiteLLMClient {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -202,6 +209,17 @@ class LiteLLMClient {
     if (request.api_key) params.append('api_key', request.api_key);
 
     const url = `${this.userDailyActivityUrl}?${params.toString()}`;
+    return this.makeRequest<LiteLLMUserDailyActivityResponse>(url);
+  }
+
+  async getUserDailyActivityAggregated(request: LiteLLMUserDailyActivityRequest = {}): Promise<LiteLLMUserDailyActivityResponse> {
+    const params = new URLSearchParams();
+    if (request.start_date) params.append('start_date', request.start_date);
+    if (request.end_date) params.append('end_date', request.end_date);
+    if (request.model) params.append('model', request.model);
+    if (request.api_key) params.append('api_key', request.api_key);
+
+    const url = `${this.userDailyActivityAggregatedUrl}?${params.toString()}`;
     return this.makeRequest<LiteLLMUserDailyActivityResponse>(url);
   }
 

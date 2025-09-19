@@ -217,17 +217,22 @@ export async function GET(request: NextRequest) {
         try {
           // Get data for each synced key and aggregate
           const litellmPromises = syncedKeys.map(key =>
-            liteLLMClient.withRetry(() =>
-              liteLLMClient.getUserDailyActivity({
-                start_date: startDate || undefined,
-                end_date: endDate || undefined,
-                model: model || undefined,
-                api_key: key.litellm_key_id
+            liteLLMClient
+              .withRetry(
+                () =>
+                  liteLLMClient.getUserDailyActivity({
+                    start_date: startDate || undefined,
+                    end_date: endDate || undefined,
+                    model: model || undefined,
+                    api_key: key.litellm_key_id,
+                  }),
+                1, // fewer retries for UI responsiveness
+                300 // shorter base delay
+              )
+              .catch(error => {
+                console.warn(`Failed to get LiteLLM data for key ${key.key}:`, error);
+                return null;
               })
-            ).catch(error => {
-              console.warn(`Failed to get LiteLLM data for key ${key.key}:`, error);
-              return null;
-            })
           );
 
           const litellmResults = await Promise.all(litellmPromises);
@@ -241,25 +246,25 @@ export async function GET(request: NextRequest) {
             const allResults: any[] = [];
 
             validResults.forEach(result => {
-              if (result) {
-                // Aggregate data across all dates in the response
-                Object.values(result).forEach((dayData: any) => {
-                  if (dayData && typeof dayData === 'object') {
-                    totalSpend += dayData.spend || 0;
-                    totalTokens += dayData.total_tokens || 0;
-                    totalRequests += dayData.api_requests || 0;
+              if (!result || typeof result !== 'object') return;
+              for (const [date, dayData] of Object.entries(result as Record<string, any>)) {
+                if (!dayData || typeof dayData !== 'object') continue;
+                // Only consider entries that look like daily metrics
+                const hasDailyShape = ('spend' in dayData) || ('total_tokens' in dayData) || ('api_requests' in dayData);
+                if (!hasDailyShape) continue;
 
-                    // Add individual day results
-                    allResults.push({
-                      date: Object.keys(result).find(key => result[key] === dayData),
-                      spend: dayData.spend,
-                      tokens: dayData.total_tokens,
-                      requests: dayData.api_requests,
-                      models: dayData.models,
-                      api_keys: dayData.api_keys,
-                      providers: dayData.providers
-                    });
-                  }
+                totalSpend += Number(dayData.spend || 0);
+                totalTokens += Number(dayData.total_tokens || 0);
+                totalRequests += Number(dayData.api_requests || 0);
+
+                allResults.push({
+                  date,
+                  spend: Number(dayData.spend || 0),
+                  tokens: Number(dayData.total_tokens || 0),
+                  requests: Number(dayData.api_requests || 0),
+                  models: dayData.models,
+                  api_keys: dayData.api_keys,
+                  providers: dayData.providers
                 });
               }
             });

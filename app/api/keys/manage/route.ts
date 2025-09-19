@@ -37,6 +37,22 @@ export async function GET() {
       throw error;
     }
 
+    // Debug: log raw balances (mask key)
+    try {
+      const debugBalances = (keys || []).map(k => ({
+        id: k.id,
+        key_mask: typeof k.key === 'string' ? `${k.key.slice(0, 6)}***` : null,
+        credit_balance_cents: k.credit_balance,
+        is_active: k.is_active,
+        created_at: k.created_at,
+      }));
+      const totalCents = debugBalances.reduce((s, k) => s + (k.credit_balance_cents || 0), 0);
+      console.log('[keys/manage] fetched keys:', debugBalances);
+      console.log('[keys/manage] total credit (cents):', totalCents, '($', (totalCents/100).toFixed(2), ')');
+    } catch (e) {
+      console.warn('[keys/manage] debug log failed:', e);
+    }
+
     // Format keys for display
     const formattedKeys = keys
       .filter(key => key.key) // Only show keys that exist
@@ -49,6 +65,9 @@ export async function GET() {
         credit_balance: key.credit_balance ? key.credit_balance / 100 : 0, // Convert cents to dollars
         needs_payment: key.credit_balance <= 0 // Flag when credits are exhausted
       }));
+
+    const totalCreditsDollars = formattedKeys.reduce((sum, k) => sum + (k.credit_balance || 0), 0);
+    console.log('[keys/manage] formatted total ($):', totalCreditsDollars.toFixed(2));
 
     return NextResponse.json({
       keys: formattedKeys,

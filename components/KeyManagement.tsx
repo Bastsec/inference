@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Copy, Eye, EyeOff, RefreshCw, ExternalLink, CreditCard, AlertTriangle } from 'lucide-react';
+import { Copy, Eye, EyeOff, RefreshCw, ExternalLink } from 'lucide-react';
 
 interface LiteLLMKey {
   id: string;
@@ -147,66 +147,7 @@ export default function KeyManagement({
         </Card>
       )}
 
-      {/* Credit Balance and Payment Prompt */}
-      {keyData?.keys && keyData.keys.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {keyData.keys.map((key) => (
-            <Card key={`balance-${key.id}`} className={key.needs_payment ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
-              <CardHeader className="pb-2">
-                <CardTitle className={`flex items-center space-x-2 text-sm ${key.needs_payment ? 'text-red-800' : 'text-green-800'}`}>
-                  {key.needs_payment ? (
-                    <AlertTriangle className="h-4 w-4" />
-                  ) : (
-                    <CreditCard className="h-4 w-4" />
-                  )}
-                  <span>Credit Balance</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium">Available Credits:</span>
-                    <span className={`text-sm font-bold ${key.needs_payment ? 'text-red-600' : 'text-green-600'}`}>
-                      ${key.credit_balance.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {key.needs_payment ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-red-700">
-                        Credits exhausted. Add more to continue.
-                      </p>
-                      <Button
-                        size="sm"
-                        className="w-full bg-red-600 hover:bg-red-700"
-                        onClick={() => window.location.href = '/pricing'}
-                      >
-                        <CreditCard className="mr-1 h-3 w-3" />
-                        Add Credits
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-xs text-green-700">
-                        API key ready to use.
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-green-300 text-green-700 hover:bg-green-100"
-                        onClick={() => window.location.href = '/pricing'}
-                      >
-                        <CreditCard className="mr-1 h-3 w-3" />
-                        Add More
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Credit balance is now displayed by the unified card on the Billing page */}
 
       {!compact && (
         <Card>
@@ -289,21 +230,21 @@ export default function KeyManagement({
       {!compact && showHeader && keyData?.litellm_configured && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Usage Instructions</CardTitle>
+            <CardTitle className="text-lg">Proxy Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <div>
-              <h4 className="text-sm font-medium mb-2">LiteLLM Base URL</h4>
+              <h4 className="text-sm font-medium mb-2">LiteLLM Proxy URL</h4>
               <div className="flex items-center space-x-2">
                 <Input
-                  value={keyData.litellm_base_url}
+                  value={'https://lite.bastco.org'}
                   readOnly
                   className="font-mono text-xs h-8"
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard(keyData.litellm_base_url)}
+                  onClick={() => copyToClipboard('https://lite.bastco.org')}
                   className="h-8 w-8 p-0"
                 >
                   <Copy className="h-3 w-3" />
@@ -311,7 +252,7 @@ export default function KeyManagement({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(keyData.litellm_base_url, '_blank')}
+                  onClick={() => window.open('https://lite.bastco.org', '_blank')}
                   className="h-8 w-8 p-0"
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -320,23 +261,22 @@ export default function KeyManagement({
             </div>
 
             <div>
-              <h4 className="text-sm font-medium mb-2">How to Use Your API Key</h4>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div className="text-sm text-blue-800">
-                    <strong>Important:</strong> Use this API key with any OpenAI-compatible client or library.
-                    All usage will be automatically tracked and charged against your credit balance.
-                  </div>
-                </div>
+              <h4 className="text-sm font-medium mb-2">Helpful Links</h4>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => window.open('https://docs.bastco.org', '_blank')}>
+                  Docs
+                </Button>
+                <Button variant="secondary" onClick={() => window.open('https://blog.bastco.org', '_blank')}>
+                  Blog
+                </Button>
               </div>
-              <div className="bg-gray-100 p-2 rounded text-xs font-mono mb-2">
+              <div className="hidden bg-gray-100 p-2 rounded text-xs font-mono mb-2">
                 <div>curl {keyData.litellm_base_url}/v1/chat/completions \</div>
                 <div>  -H "Authorization: Bearer YOUR_API_KEY" \</div>
                 <div>  -H "Content-Type: application/json" \</div>
                 <div>  -d {`{"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Hello!"}]}`}'</div>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="hidden text-xs text-muted-foreground">
                 Replace <code className="bg-gray-50 px-1 rounded">YOUR_API_KEY</code> with your actual API key above.
                 All requests are automatically tracked and billed.
               </p>

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { buildSignInUrl } from '@/lib/auth/redirects';
+import { initializePaystackTransaction } from '@/lib/payments/paystack';
 
-const PLAN_URLS: Record<string, string> = {
-  basic: 'https://paystack.shop/pay/1v885uasel',
-  pro: 'https://paystack.shop/pay/0h8fkjx9gi',
-  advanced: 'https://paystack.shop/pay/a5bbfkky79',
+const PLAN_AMOUNTS_USD: Record<'basic' | 'pro' | 'advanced', number> = {
+  basic: 5,
+  pro: 15,
+  advanced: 20,
 };
 
 export async function GET(request: NextRequest) {
@@ -22,10 +23,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}${signInUrl}`);
   }
 
-  const target = PLAN_URLS[plan];
-  if (!target) {
+  if (!['basic', 'pro', 'advanced'].includes(plan)) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
   }
 
-  return NextResponse.redirect(target);
+  try {
+    const amountUsd = PLAN_AMOUNTS_USD[plan as keyof typeof PLAN_AMOUNTS_USD];
+    const { authorizationUrl } = await initializePaystackTransaction({ amountUsd });
+    return NextResponse.redirect(authorizationUrl);
+  } catch (err) {
+    console.error('Paystack init failed:', err);
+    return NextResponse.json({ error: 'Failed to start checkout' }, { status: 500 });
+  }
 }
