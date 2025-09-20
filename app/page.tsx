@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Zap, Shield, DollarSign } from 'lucide-react';
+import { ArrowRight, Zap, Shield, DollarSign, Sparkles } from 'lucide-react';
+import { Terminal, TypingAnimation } from '@/components/magicui/terminal';
 import Link from 'next/link';
 
 export default async function HomePage() {
@@ -15,143 +16,122 @@ export default async function HomePage() {
 
   // Show landing page for unauthenticated users
   return (
-    <main>
-      
-      <section className="py-20">
+    <main className="relative overflow-hidden">
+      {/* Pastel, futuristic background layers */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-24 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(186,230,253,0.7),transparent_60%)] blur-3xl animate-[pulse_6s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-24 -left-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(221,214,254,0.6),transparent_60%)] blur-3xl animate-[pulse_7s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-10 -right-20 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(251,207,232,0.6),transparent_60%)] blur-3xl animate-[pulse_8s_ease-in-out_infinite]" />
+        {/* soft grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      </div>
+
+      {/* Hero */}
+      <section className="relative py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-            <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
-              <h1 className="text-4xl font-bold text-gray-900 tracking-tight sm:text-5xl md:text-6xl">
-                Access Premium AI Models
-                <span className="block text-blue-600">At 50% Off</span>
+          <div className="grid lg:grid-cols-12 gap-10 items-center">
+            <div className="md:max-w-2xl lg:col-span-7">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/60 backdrop-blur border border-white/40 px-3 py-1 text-sm text-gray-700 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                <Sparkles className="h-4 w-4 text-indigo-400" />
+                50% off premium AI models
+              </div>
+              <h1 className="mt-6 text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
+                <span className="block text-gray-900">Access Premium AI Models</span>
+                <span className="block bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">At Half The Cost</span>
               </h1>
-              <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Get access to OpenAI's latest models including GPT-4o, GPT-4 Turbo, 
-                and more at half the cost. No compromises on quality, just better pricing.
+              <p className="mt-6 text-lg sm:text-xl text-gray-600 leading-relaxed">
+                Same models at 50% off. Fast responses, low rate limiting, transparent billing.
               </p>
-              <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
-                <div className="flex gap-4">
-                  <Link href="/sign-up">
-                    <Button
-                      size="lg"
-                      className="text-lg rounded-full bg-blue-600 hover:bg-blue-700"
-                    >
-                      Start Saving Now
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
-                  <Link href="/sign-in">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="text-lg rounded-full"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
-                </div>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link href="/sign-up">
+                  <Button size="lg" className="rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-md">
+                    Start Saving Now
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link href="/pricing">
+                  <Button size="lg" variant="outline" className="rounded-full">
+                    See Pricing
+                  </Button>
+                </Link>
               </div>
+              <p className="mt-3 text-sm text-gray-500">No commitments. Same models, lower costs.</p>
             </div>
-            <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-8 text-white">
-                <h3 className="text-2xl font-bold mb-4">Why Choose Basti?</h3>
-                <ul className="space-y-2">
-                  <li className="flex items-center">
-                    <DollarSign className="h-5 w-5 mr-2" />
-                    50% off all premium models
-                  </li>
-                  <li className="flex items-center">
-                    <Zap className="h-5 w-5 mr-2" />
-                    Same speed & quality as OpenAI
-                  </li>
-                  <li className="flex items-center">
-                    <Shield className="h-5 w-5 mr-2" />
-                    Secure & reliable API access
-                  </li>
-                </ul>
+
+            <div className="relative lg:col-span-5">
+              <div className="relative animate-in fade-in slide-in-from-bottom-4">
+                <Terminal>
+                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>$</TypingAnimation>
+                </Terminal>
               </div>
+              <div className="pointer-events-none absolute -inset-2 -z-10 rounded-3xl bg-[conic-gradient(from_90deg_at_50%_50%,rgba(56,189,248,0.25),rgba(167,139,250,0.25),rgba(244,114,182,0.25),rgba(56,189,248,0.25))] blur-2xl opacity-75" />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-16 bg-white w-full">
+      {/* Features */}
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-3 lg:gap-8">
-            <div>
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
                 <Zap className="h-6 w-6" />
               </div>
-              <div className="mt-5">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Lightning Fast API
-                </h2>
-                <p className="mt-2 text-base text-gray-500">
-                  Get the same speed and reliability as OpenAI's direct API
-                  with our optimized infrastructure.
-                </p>
-              </div>
+              <h4 className="mt-5 text-lg font-semibold text-gray-900">Lightning fast API</h4>
+              <p className="mt-2 text-gray-600">Built on optimized infrastructure for low latency and high reliability across regions.</p>
             </div>
-
-            <div className="mt-10 lg:mt-0">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white">
+            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
                 <DollarSign className="h-6 w-6" />
               </div>
-              <div className="mt-5">
-                <h2 className="text-lg font-medium text-gray-900">
-                  50% Cost Savings
-                </h2>
-                <p className="mt-2 text-base text-gray-500">
-                  Access premium AI models at half the cost without
-                  compromising on quality or performance.
-                </p>
-              </div>
+              <h4 className="mt-5 text-lg font-semibold text-gray-900">50% cost savings</h4>
+              <p className="mt-2 text-gray-600">Premium models at half the cost—no compromise on quality or performance.</p>
             </div>
-
-            <div className="mt-10 lg:mt-0">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-purple-500 text-white">
+            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Shield className="h-6 w-6" />
               </div>
-              <div className="mt-5">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Enterprise Security
-                </h2>
-                <p className="mt-2 text-base text-gray-500">
-                  Your API keys and data are protected with enterprise-grade
-                  security and encryption.
-                </p>
+              <h4 className="mt-5 text-lg font-semibold text-gray-900">Enterprise security</h4>
+              <p className="mt-2 text-gray-600">Your keys and data protected with strict isolation, encryption and auditability.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 p-10 sm:p-12">
+            <div className="grid gap-8 items-center sm:grid-cols-2">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Ready to cut your AI costs?</h2>
+                <p className="mt-3 text-gray-600">Join developers saving with Basti. Same models, simpler experience, better pricing.</p>
+              </div>
+              <div className="flex sm:justify-end">
+                <Link href="/sign-up">
+                  <Button size="lg" className="rounded-full bg-indigo-600 hover:bg-indigo-700">
+                    Start Saving Today
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                Ready to cut your AI costs in half?
-              </h2>
-              <p className="mt-3 max-w-3xl text-lg text-gray-500">
-                Join thousands of developers and businesses who are saving 50% on their
-                AI model costs with Basti. Get started in minutes with the same API you know and love.
-              </p>
-            </div>
-            <div className="mt-8 lg:mt-0 flex justify-center lg:justify-end">
-              <Link href="/sign-up">
-                <Button
-                  size="lg"
-                  className="text-lg rounded-full bg-blue-600 hover:bg-blue-700"
-                >
-                  Start Saving Today
-                  <ArrowRight className="ml-3 h-6 w-6" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+      {/* Footer */}
+      <footer className="pb-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
+          Made with ❤️ in Kiambu
         </div>
-      </section>
+      </footer>
     </main>
   );
 }

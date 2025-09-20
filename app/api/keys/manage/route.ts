@@ -28,13 +28,74 @@ export async function GET() {
     }
 
     // Get user's keys from database using Supabase user ID
-    const { data: keys, error } = await supabaseAdmin
+    let { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
-      .select('id, key, user_id, credit_balance, is_active, created_at')
+      .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
       .eq('user_id', authUser.user.id);
 
     if (error) {
       throw error;
+    }
+
+    // Auto-provision a LiteLLM key if none exists yet so free $2 trial is usable immediately
+    if (liteLLMClient.isConfigured()) {
+      const hasSkKey = (keys || []).some(k => typeof k.key === 'string' && k.key.startsWith('sk-'))
+        || (keys || []).some(k => typeof (k as any).litellm_key_id === 'string' && (k as any).litellm_key_id.startsWith('sk-'));
+      if (!hasSkKey) {
+        try {
+          const target = (keys && keys[0]) || null;
+          const initialCredits = target?.credit_balance ?? 200; // default $2.00 if absent
+          const liteLLMKey = await liteLLMClient.generateKey({
+            user_id: authUser.user.id,
+            key_alias: `User ${authUser.user.id.slice(0, 8)}`,
+            max_budget: (target?.max_budget ?? initialCredits) / 100,
+            budget_duration: target?.budget_duration || '30d',
+            rpm_limit: target?.rpm_limit || 100,
+            tpm_limit: target?.tpm_limit || 100000,
+          });
+
+          if (target) {
+            await supabaseAdmin
+              .from('virtual_keys')
+              .update({
+                key: liteLLMKey.key,
+                litellm_key_id: liteLLMKey.key,
+                is_active: true,
+                sync_status: 'synced',
+                last_synced_at: new Date().toISOString(),
+                // preserve existing credit balance and max_budget; if missing set based on initial
+                credit_balance: target.credit_balance ?? initialCredits,
+                max_budget: target.max_budget ?? initialCredits,
+              })
+              .eq('id', target.id);
+          } else {
+            await supabaseAdmin
+              .from('virtual_keys')
+              .insert({
+                user_id: authUser.user.id,
+                key: liteLLMKey.key,
+                litellm_key_id: liteLLMKey.key,
+                credit_balance: initialCredits,
+                is_active: true,
+                max_budget: initialCredits,
+                budget_duration: '30d',
+                rpm_limit: 100,
+                tpm_limit: 100000,
+                sync_status: 'synced',
+                last_synced_at: new Date().toISOString(),
+              });
+          }
+
+          // Refetch keys after provisioning
+          const refetch = await supabaseAdmin
+            .from('virtual_keys')
+            .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
+            .eq('user_id', authUser.user.id);
+          keys = refetch.data || keys;
+        } catch (provisionErr) {
+          console.warn('[keys/manage] auto-provision LiteLLM key failed:', provisionErr);
+        }
+      }
     }
 
     // Debug: log raw balances (mask key)
@@ -54,17 +115,23 @@ export async function GET() {
     }
 
     // Format keys for display
-    const formattedKeys = keys
-      .filter(key => key.key) // Only show keys that exist
-      .map(key => ({
-        id: key.id,
-        key: key.key,
-        key_alias: `Basti API Key`,
-        is_active: key.is_active,
-        created_at: key.created_at,
-        credit_balance: key.credit_balance ? key.credit_balance / 100 : 0, // Convert cents to dollars
-        needs_payment: key.credit_balance <= 0 // Flag when credits are exhausted
-      }));
+    const formattedKeys = (keys || [])
+      .map(k => {
+        const keyStr = typeof k.key === 'string' ? k.key : '';
+        const litellmKey = typeof (k as any).litellm_key_id === 'string' ? (k as any).litellm_key_id : '';
+        // Prefer plain LiteLLM key (sk-...) if available
+        const displayKey = keyStr.startsWith('sk-') ? keyStr : (litellmKey.startsWith('sk-') ? litellmKey : keyStr);
+        return {
+          id: k.id,
+          key: displayKey,
+          key_alias: `Basti API Key`,
+          is_active: k.is_active,
+          created_at: k.created_at,
+          credit_balance: k.credit_balance ? k.credit_balance / 100 : 0, // Convert cents to dollars
+          needs_payment: k.credit_balance <= 0 // Flag when credits are exhausted
+        };
+      })
+      .filter(item => typeof item.key === 'string' && item.key.startsWith('sk-'));
 
     const totalCreditsDollars = formattedKeys.reduce((sum, k) => sum + (k.credit_balance || 0), 0);
     console.log('[keys/manage] formatted total ($):', totalCreditsDollars.toFixed(2));

@@ -61,6 +61,7 @@ serve(async (req) => {
         const data = await verifyReference(reference);
         const payStatus = String(data.status || '').toLowerCase();
         const amountSubunits = Number(data.amount || 0);
+        const currency = String(data.currency || '').toUpperCase();
         const metadata = (data.metadata || {}) as Record<string, any>;
         const email: string | undefined = data.customer?.email || metadata.email;
         if (typeof metadata?.return_url === 'string') {
@@ -84,14 +85,41 @@ serve(async (req) => {
           const wholeUnits = Math.floor(amountSubunits / 100);
           const tier = PAYMENT_TIERS[wholeUnits as keyof typeof PAYMENT_TIERS];
           const planUsd = typeof metadata.plan_usd === 'number' ? metadata.plan_usd : undefined;
-          const creditDollars = planUsd ?? tier?.credits ?? wholeUnits * 2;
+          const usdToKesRate = Number(Deno.env.get('USD_TO_KES_RATE') || '129');
+
+          // Compute credits in USD cents: double the USD equivalent
+          let creditDollars: number;
+          if (typeof planUsd === 'number') {
+            creditDollars = planUsd * 2;
+          } else if (currency === 'KES') {
+            const amountKes = amountSubunits / 100;
+            const amountUsd = (amountKes / (Number.isFinite(usdToKesRate) && usdToKesRate > 0 ? usdToKesRate : 129));
+            creditDollars = amountUsd * 2;
+          } else {
+            // Assume USD or other USD-like currency in minor units
+            const amountUsd = amountSubunits / 100;
+            creditDollars = amountUsd * 2;
+          }
           const creditCents = Math.round(creditDollars * 100);
-          const budgetToAdd = planUsd ?? tier?.budget ?? wholeUnits;
+
+          // Budget increment (not doubled): reflect purchased plan value in USD
+          let budgetToAdd: number;
+          if (typeof planUsd === 'number') {
+            budgetToAdd = planUsd;
+          } else if (currency === 'KES') {
+            const amountKes = amountSubunits / 100;
+            budgetToAdd = (amountKes / (Number.isFinite(usdToKesRate) && usdToKesRate > 0 ? usdToKesRate : 129));
+          } else if (tier?.budget) {
+            budgetToAdd = tier.budget;
+          } else {
+            budgetToAdd = amountSubunits / 100;
+          }
           console.log('[payment-function][callback] crediting:', {
             reference,
             resolvedUserId,
             amountSubunits,
             planUsd,
+            currency,
             creditCents,
             budgetToAdd
           });
@@ -192,8 +220,9 @@ serve(async (req) => {
                     headers: {
                       'Authorization': `Bearer ${LITELLM_MASTER_KEY}`,
                       'Content-Type': 'application/json',
+                      'litellm-changed-by': email || resolvedUserId || 'payment-function'
                     },
-                    body: JSON.stringify({ key: vk.litellm_key_id, max_budget: newTotalBudget, budget_duration: '30d' }),
+                    body: JSON.stringify({ key: vk.litellm_key_id, max_budget: newTotalBudget, budget_duration: '30d', user_id: resolvedUserId }),
                   });
                   if (!resp.ok) console.warn('[payment-function][callback] LiteLLM update failed');
                 }
@@ -215,16 +244,16 @@ serve(async (req) => {
 
       const appBase = BASE_URL || returnUrl || reqUrl.origin;
       const redirectPath = Deno.env.get('POST_PAYMENT_REDIRECT_PATH') || '/dashboard';
-      const redirectTo = `${appBase}${redirectPath}?status=success&reference=${encodeURIComponent(reference)}`;
+      // Redirect without attaching reference param to avoid 404s in app routes
+      const redirectTo = `${appBase}${redirectPath}?status=success`;
       console.log('[payment-function][callback] redirecting to:', redirectTo);
       return new Response(null, { status: 302, headers: { Location: redirectTo } });
     } catch (e) {
       console.error('[payment-function][callback] error:', e);
       const reqUrl2 = new URL(req.url);
-      const ref = reqUrl2.searchParams.get('reference') || '';
       const appBase = BASE_URL || reqUrl2.origin;
       const redirectPath = Deno.env.get('POST_PAYMENT_REDIRECT_PATH') || '/dashboard';
-      const redirectTo = `${appBase}${redirectPath}?status=failed&reference=${encodeURIComponent(ref)}`;
+      const redirectTo = `${appBase}${redirectPath}?status=failed`;
       console.log('[payment-function][callback] redirecting (failed) to:', redirectTo);
       return new Response(null, { status: 302, headers: { Location: redirectTo } });
     }
@@ -276,9 +305,35 @@ serve(async (req) => {
     const wholeUnits = Math.floor(amountSubunits / 100);
     const tier = PAYMENT_TIERS[wholeUnits as keyof typeof PAYMENT_TIERS];
     const planUsd = typeof metadata?.plan_usd === 'number' ? metadata.plan_usd : undefined;
-    const creditToAddDollars = planUsd ?? tier?.credits ?? wholeUnits * 2;
+    const usdToKesRate = Number(Deno.env.get('USD_TO_KES_RATE') || '129');
+
+    // Credits: double the USD equivalent
+    let creditToAddDollars: number;
+    if (typeof planUsd === 'number') {
+      creditToAddDollars = planUsd * 2;
+    } else if (String(currency || '').toUpperCase() === 'KES') {
+      const amountKes = amountSubunits / 100;
+      const amountUsd = (amountKes / (Number.isFinite(usdToKesRate) && usdToKesRate > 0 ? usdToKesRate : 129));
+      creditToAddDollars = amountUsd * 2;
+    } else if (tier?.credits) {
+      creditToAddDollars = tier.credits;
+    } else {
+      creditToAddDollars = (amountSubunits / 100) * 2; // assume USD minor units
+    }
     const creditToAddCents = Math.round(creditToAddDollars * 100);
-    const budgetToAdd = planUsd ?? tier?.budget ?? wholeUnits;
+
+    // Budget increment (not doubled)
+    let budgetToAdd: number;
+    if (typeof planUsd === 'number') {
+      budgetToAdd = planUsd;
+    } else if (String(currency || '').toUpperCase() === 'KES') {
+      const amountKes = amountSubunits / 100;
+      budgetToAdd = (amountKes / (Number.isFinite(usdToKesRate) && usdToKesRate > 0 ? usdToKesRate : 129));
+    } else if (tier?.budget) {
+      budgetToAdd = tier.budget;
+    } else {
+      budgetToAdd = amountSubunits / 100;
+    }
 
     // Snapshot balances before
     let beforeTotal = 0;
@@ -358,8 +413,9 @@ serve(async (req) => {
               headers: {
                 'Authorization': `Bearer ${LITELLM_MASTER_KEY}`,
                 'Content-Type': 'application/json',
+                'litellm-changed-by': email || resolvedUserId || 'payment-function'
               },
-              body: JSON.stringify({ key: vk.litellm_key_id, max_budget: newTotalBudget, budget_duration: '30d' }),
+              body: JSON.stringify({ key: vk.litellm_key_id, max_budget: newTotalBudget, budget_duration: '30d', user_id: resolvedUserId }),
             });
           }
         }

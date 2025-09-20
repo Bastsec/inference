@@ -8,21 +8,19 @@ export default function PricingTemplate({ children }: { children: React.ReactNod
   const params = useSearchParams();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
-  const [ref, setRef] = useState<string | null>(null);
   const [message, setMessage] = useState<string>('');
 
   const status = params.get('status');
   const reference = params.get('reference') || params.get('trxref');
-
-  const storageKey = useMemo(() => (reference ? `pricing_toast_${reference}` : null), [reference]);
+  // Show toast on status=success regardless of reference; keep per-session de-dupe
+  const storageKey = useMemo(() => 'pricing_toast_success', []);
 
   useEffect(() => {
     try {
-      if (status === 'success' && reference) {
+      if (status === 'success') {
         const alreadyShown = storageKey ? sessionStorage.getItem(storageKey) : null;
         if (!alreadyShown) {
-          setRef(reference);
-          setMessage('Payment verified. Credits will reflect shortly.');
+          setMessage('Payment successful. Credits applied and limits updated.');
           setVisible(true);
           if (storageKey) sessionStorage.setItem(storageKey, '1');
         }
@@ -31,7 +29,7 @@ export default function PricingTemplate({ children }: { children: React.ReactNod
       // non-fatal
       console.warn('Pricing toast setup failed:', e);
     }
-  }, [status, reference, storageKey]);
+  }, [status, storageKey]);
 
   const onDismiss = () => setVisible(false);
   const goDashboard = () => router.push('/dashboard');
@@ -44,9 +42,6 @@ export default function PricingTemplate({ children }: { children: React.ReactNod
           <div className="p-4">
             <div className="font-medium">Payment successful</div>
             <div className="mt-1 text-sm opacity-90">{message}</div>
-            {ref && (
-              <div className="mt-1 text-[11px] opacity-60">Ref: {ref}</div>
-            )}
             <div className="mt-3 flex gap-2">
               <button
                 onClick={goDashboard}
@@ -67,4 +62,3 @@ export default function PricingTemplate({ children }: { children: React.ReactNod
     </>
   );
 }
-
