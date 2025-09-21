@@ -37,7 +37,7 @@ export async function initializePaystackTransaction(params: {
   const functionName = process.env.PAYSTACK_FUNCTION_NAME || 'payment-function';
   const callbackUrl = supabaseUrl
     ? `${supabaseUrl}/functions/v1/${functionName}?cb=1`
-    : `${baseUrl}/pricing?status=success`;
+    : `${baseUrl}/pricing`;
 
   const payload = {
     email: user!.email,
