@@ -11,19 +11,33 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Provide minimal env to satisfy build-time module evaluation
-ENV POSTGRES_URL=postgresql://user:pass@localhost:5432/dummy
-ENV SUPABASE_URL=https://xpvkmsuvaambcsanbydk.supabase.co
-ENV SUPABASE_ANON_KEY=dummy
-ENV SUPABASE_SERVICE_ROLE_KEY=dummy
-ENV PAYSTACK_SECRET_KEY=dummy
-ENV BASE_URL=http://localhost:3000
-ENV LITELLM_BASE_URL=http://localhost:4000
-ENV LITELLM_MASTER_KEY=dummy
-ENV PAYSTACK_FUNCTION_NAME=payment-function
-ENV POST_PAYMENT_REDIRECT_PATH=/dashboard/billing
-ENV PAYSTACK_CURRENCY=USD
-ENV USD_TO_KES_RATE=129
+# Build-time args with safe defaults; used only to allow module evaluation during build
+ARG POSTGRES_URL=postgresql://user:pass@localhost:5432/dummy
+ARG SUPABASE_URL=https://example.supabase.co
+ARG SUPABASE_ANON_KEY=dummy
+ARG SUPABASE_SERVICE_ROLE_KEY=dummy
+ARG PAYSTACK_SECRET_KEY=dummy
+ARG BASE_URL=http://localhost:3000
+ARG LITELLM_BASE_URL=http://localhost:4000
+ARG LITELLM_MASTER_KEY=dummy
+ARG PAYSTACK_FUNCTION_NAME=payment-function
+ARG POST_PAYMENT_REDIRECT_PATH=/dashboard/billing
+ARG PAYSTACK_CURRENCY=USD
+ARG USD_TO_KES_RATE=129
+
+# Export as ENV so Next build and any SSR evals see them
+ENV POSTGRES_URL=$POSTGRES_URL \
+    SUPABASE_URL=$SUPABASE_URL \
+    SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+    SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY \
+    PAYSTACK_SECRET_KEY=$PAYSTACK_SECRET_KEY \
+    BASE_URL=$BASE_URL \
+    LITELLM_BASE_URL=$LITELLM_BASE_URL \
+    LITELLM_MASTER_KEY=$LITELLM_MASTER_KEY \
+    PAYSTACK_FUNCTION_NAME=$PAYSTACK_FUNCTION_NAME \
+    POST_PAYMENT_REDIRECT_PATH=$POST_PAYMENT_REDIRECT_PATH \
+    PAYSTACK_CURRENCY=$PAYSTACK_CURRENCY \
+    USD_TO_KES_RATE=$USD_TO_KES_RATE
 RUN bun run typecheck && bun run build
 
 FROM oven/bun:1 AS runner
