@@ -26,16 +26,18 @@ ENV PAYSTACK_CURRENCY=USD
 ENV USD_TO_KES_RATE=129
 RUN bun run typecheck && bun run build
 
-FROM node:20-alpine AS runner
+FROM oven/bun:1 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy standalone output
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-# No public dir in this project; static assets are served from app/
+# Copy production artifacts for next start
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.ts ./next.config.ts
+# No public dir in this project
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["bun", "x", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
