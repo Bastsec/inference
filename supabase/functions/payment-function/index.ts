@@ -244,8 +244,8 @@ serve(async (req) => {
 
       const appBase = BASE_URL || returnUrl || reqUrl.origin;
       const redirectPath = Deno.env.get('POST_PAYMENT_REDIRECT_PATH') || '/dashboard';
-      // Redirect without attaching reference param to avoid 404s in app routes
-      const redirectTo = `${appBase}${redirectPath}?status=success`;
+      // Redirect without any query params to avoid 404s in app routes
+      const redirectTo = `${appBase}${redirectPath}`;
       console.log('[payment-function][callback] redirecting to:', redirectTo);
       return new Response(null, { status: 302, headers: { Location: redirectTo } });
     } catch (e) {
@@ -253,7 +253,7 @@ serve(async (req) => {
       const reqUrl2 = new URL(req.url);
       const appBase = BASE_URL || reqUrl2.origin;
       const redirectPath = Deno.env.get('POST_PAYMENT_REDIRECT_PATH') || '/dashboard';
-      const redirectTo = `${appBase}${redirectPath}?status=failed`;
+      const redirectTo = `${appBase}${redirectPath}`;
       console.log('[payment-function][callback] redirecting (failed) to:', redirectTo);
       return new Response(null, { status: 302, headers: { Location: redirectTo } });
     }

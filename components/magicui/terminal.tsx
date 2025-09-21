@@ -17,7 +17,7 @@ const useSequence = () => useContext(SequenceContext);
 const ItemIndexContext = createContext<number | null>(null);
 const useItemIndex = () => useContext(ItemIndexContext);
 
-function useInView(ref: React.RefObject<Element>, options?: IntersectionObserverInit) {
+function useInView<T extends Element>(ref: React.RefObject<T | null>, options?: IntersectionObserverInit) {
   const [inView, setInView] = useState(false);
   useEffect(() => {
     const node = ref.current;

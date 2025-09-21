@@ -1,0 +1,14 @@
+.git
+.gitignore
+.next
+node_modules
+pnpm-lock.yaml
+*.log
+.DS_Store
+.env
+.env.*
+supabase/
+lib/db/migrations/meta/
+lib/db/migrations/*.sql.bak
+coverage/
+tmp/

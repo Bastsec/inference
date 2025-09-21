@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Note: payment verification fallback removed — unified function handles callback + crediting
+  
 
   return response;
 }

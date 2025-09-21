@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import { getUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'Basti - Premium AI Models at 50% Off',
@@ -35,9 +36,14 @@ export default function RootLayout({
             }
           }}
         >
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </SWRConfig>
       </body>
     </html>
   );
 }
+
+// Force dynamic rendering across the app to avoid PPR cookie bailouts during build
+export const dynamic = 'force-dynamic';

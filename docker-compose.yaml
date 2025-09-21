@@ -1,0 +1,32 @@
+services:
+  web:
+    build:
+      context: .
+    image: inference-web:latest
+    container_name: inference-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Required (set in .env or Coolify secrets)
+      - BASE_URL=${BASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - PAYSTACK_SECRET_KEY=${PAYSTACK_SECRET_KEY}
+      - PAYSTACK_CURRENCY=${PAYSTACK_CURRENCY:-USD}
+      - USD_TO_KES_RATE=${USD_TO_KES_RATE:-129}
+      - PAYSTACK_FUNCTION_NAME=${PAYSTACK_FUNCTION_NAME:-payment-function}
+      - POST_PAYMENT_REDIRECT_PATH=${POST_PAYMENT_REDIRECT_PATH:-/dashboard/billing}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      # Optional: enable cost headers from proxy responses
+      - INCLUDE_COST_HEADERS=${INCLUDE_COST_HEADERS:-false}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    # No local liteLLM service; using hosted LiteLLM via LITELLM_BASE_URL

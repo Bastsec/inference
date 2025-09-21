@@ -33,10 +33,10 @@ export default async function HomePage() {
             <div className="md:max-w-2xl lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/60 backdrop-blur border border-white/40 px-3 py-1 text-sm text-gray-700 shadow-sm animate-in fade-in slide-in-from-bottom-2">
                 <Sparkles className="h-4 w-4 text-indigo-400" />
-                50% off premium AI models
+                Get 50% off Premium AI Models
               </div>
               <h1 className="mt-6 text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
-                <span className="block text-gray-900">Access Premium AI Models</span>
+                <span className="block text-gray-900">Access Premium OpenAI Models</span>
                 <span className="block bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">At Half The Cost</span>
               </h1>
               <p className="mt-6 text-lg sm:text-xl text-gray-600 leading-relaxed">
@@ -51,7 +51,7 @@ export default async function HomePage() {
                 </Link>
                 <Link href="/pricing">
                   <Button size="lg" variant="outline" className="rounded-full">
-                    See Pricing
+                    See Our Pricing Plans
                   </Button>
                 </Link>
               </div>
@@ -84,7 +84,7 @@ export default async function HomePage() {
                 <Zap className="h-6 w-6" />
               </div>
               <h4 className="mt-5 text-lg font-semibold text-gray-900">Lightning fast API</h4>
-              <p className="mt-2 text-gray-600">Built on optimized infrastructure for low latency and high reliability across regions.</p>
+              <p className="mt-2 text-gray-600">Built on infrastructure Optimized For Low Latency and High Reliability.</p>
             </div>
             <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
               <div className="flex size-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
