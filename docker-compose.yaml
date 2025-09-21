@@ -6,7 +6,7 @@ services:
     container_name: inference-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "4317:3000" # Host:Container — uncommon host port to avoid conflicts
     env_file:
       - .env
     environment:
