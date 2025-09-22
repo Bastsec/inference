@@ -1,13 +1,22 @@
+// Server Component: fetches user on the server
+
 import { Card } from '@/components/ui/card';
 import { ArrowRight, BarChart3, Key, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { getUser } from '@/lib/db/queries';
+import { ForceClient } from '@/components/ForceClient';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const experimental_ppr = false as const;
 
 export default async function DashboardPage() {
   const user = await getUser();
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Force a client boundary to ensure clientReferenceManifest is present */}
+      <ForceClient />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
           Welcome back{user?.name ? `, ${user.name}` : ''}!

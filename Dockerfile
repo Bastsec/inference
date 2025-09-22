@@ -35,12 +35,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Copy production artifacts for next start (non-standalone)
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copy standalone production build
+# .next/standalone contains server.js and minimal node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Include server artifacts required by the App Router (client/server reference manifests)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/server ./.next/server
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 # Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs
@@ -49,5 +52,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Start Next.js server
-CMD ["npm", "run", "start"]
+# Start Next.js standalone server
+CMD ["node", "server.js"]
