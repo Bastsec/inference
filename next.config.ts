@@ -1,7 +1,5 @@
-import type { NextConfig } from 'next';
 
-// Disable experimental flags to avoid canary runtime manifest bugs under Bun
-const nextConfig: NextConfig = {
+const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },

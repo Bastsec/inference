@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser } from '@/lib/db/queries';
 import { liteLLMClient } from '@/lib/litellm/client';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
@@ -16,13 +15,6 @@ const supabaseAdmin = createClient(
 export async function GET(request: NextRequest) {
   try {
     console.log('Analytics usage request started');
-
-    const user = await getUser();
-    if (!user) {
-      console.log('User not found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.log('User authenticated:', user.id);
 
     // Get Supabase user ID (UUID) for usage_logs queries
     const supabase = await getServerSupabase();

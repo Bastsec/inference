@@ -76,6 +76,38 @@ export default function KeyManagement({
     }
   };
 
+  const sendTestRequest = async () => {
+    try {
+      const res = await fetch('/api/diagnostics/proxy-test', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Test failed: ${data.error || 'Unknown error'}`);
+        return;
+      }
+      alert(`Test ok: model=${data.model} tokens=${data.tokens?.total || 0} cost_cents=${data.cost_cents ?? 'n/a'}`);
+    } catch (e) {
+      console.error('Test request error:', e);
+      alert('Test request failed');
+    }
+  };
+
+  const consolidateKeys = async () => {
+    if (!confirm('Consolidate to a single active key? This will deactivate duplicates.')) return;
+    try {
+      const res = await fetch('/api/keys/consolidate', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Consolidation failed: ${data.error || 'Unknown error'}`);
+        return;
+      }
+      alert(`Consolidated. Active key: ${data.active_key_mask}`);
+      await fetchKeys();
+    } catch (e) {
+      console.error('Consolidate error:', e);
+      alert('Consolidation failed');
+    }
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -237,14 +269,14 @@ export default function KeyManagement({
               <h4 className="text-sm font-medium mb-2">LiteLLM Proxy URL</h4>
               <div className="flex items-center space-x-2">
                 <Input
-                  value={'https://lite.bastco.org'}
+                  value={keyData?.litellm_base_url || ''}
                   readOnly
                   className="font-mono text-xs h-8"
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard('https://lite.bastco.org')}
+                  onClick={() => keyData?.litellm_base_url && copyToClipboard(keyData.litellm_base_url)}
                   className="h-8 w-8 p-0"
                 >
                   <Copy className="h-3 w-3" />
@@ -252,12 +284,21 @@ export default function KeyManagement({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open('https://lite.bastco.org', '_blank')}
+                  onClick={() => keyData?.litellm_base_url && window.open(keyData.litellm_base_url, '_blank')}
                   className="h-8 w-8 p-0"
                 >
                   <ExternalLink className="h-3 w-3" />
                 </Button>
               </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={sendTestRequest}>
+                Send Test Request
+              </Button>
+              <Button variant="outline" onClick={consolidateKeys}>
+                Consolidate Keys
+              </Button>
             </div>
 
             <div>

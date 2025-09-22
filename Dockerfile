@@ -40,18 +40,18 @@ ENV POSTGRES_URL=$POSTGRES_URL \
     USD_TO_KES_RATE=$USD_TO_KES_RATE
 RUN bun run typecheck && bun run build
 
-FROM oven/bun:1 AS runner
+FROM node:22 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy production artifacts for next start
+# Copy production artifacts for next start under Node runtime
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.ts ./next.config.ts
-# No public dir in this project
 
 EXPOSE 3000
 
-CMD ["bun", "x", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-H", "0.0.0.0", "-p", "3000"]

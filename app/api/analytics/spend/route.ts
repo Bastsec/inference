@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getUser } from '@/lib/db/queries';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
 
@@ -13,11 +12,6 @@ import { liteLLMClient } from '@/lib/litellm/client';
 
 export async function GET(request: Request) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Get Supabase user ID (UUID) for usage_logs queries
     const supabase = await getServerSupabase();
     const { data: authUser } = await supabase.auth.getUser();
