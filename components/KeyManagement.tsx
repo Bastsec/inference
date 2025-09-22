@@ -108,6 +108,22 @@ export default function KeyManagement({
     }
   };
 
+  const syncSpend = async () => {
+    try {
+      const res = await fetch('/api/keys/sync-spend', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Sync failed: ${data.error || 'Unknown error'}`);
+        return;
+      }
+      alert('Spend synced successfully.');
+      await fetchKeys();
+    } catch (e) {
+      console.error('Sync spend error:', e);
+      alert('Sync failed');
+    }
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -298,6 +314,9 @@ export default function KeyManagement({
               </Button>
               <Button variant="outline" onClick={consolidateKeys}>
                 Consolidate Keys
+              </Button>
+              <Button variant="outline" onClick={syncSpend}>
+                Sync Spend Now
               </Button>
             </div>
 

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { liteLLMClient } from '@/lib/litellm/client';
 import { createClient } from '@supabase/supabase-js';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 /**
  * Get usage analytics for the authenticated user
@@ -37,6 +41,7 @@ export async function GET(request: NextRequest) {
     const startDate = startDateParam || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days ago
 
     // Get user's virtual keys for filtering
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: userKeys, error: keysError } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, key, litellm_key_id')
@@ -200,9 +205,10 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, any>);
 
     let litellmData = null;
+    const augmentFromLiteLLM = process.env.LITELLM_ANALYTICS_AUGMENT === 'true';
 
-    // Try to get LiteLLM analytics if configured and we have synced keys
-    if (liteLLMClient.isConfigured()) {
+    // Try to get LiteLLM analytics if explicitly enabled and we have synced keys
+    if (augmentFromLiteLLM && liteLLMClient.isConfigured()) {
       const syncedKeys = userKeys.filter(k => k.litellm_key_id);
       
       if (syncedKeys.length > 0) {

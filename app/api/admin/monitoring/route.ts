@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
-import { liteLLMMonitoring } from '@/lib/litellm/monitoring';
+import { getLiteLLMMonitoring } from '@/lib/litellm/monitoring';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 /**
  * Get LiteLLM monitoring status and metrics
@@ -22,25 +25,26 @@ export async function GET(request: NextRequest) {
 
     switch (action) {
       case 'health':
-        const healthCheck = await liteLLMMonitoring.performHealthCheck();
+        const healthCheck = await getLiteLLMMonitoring().performHealthCheck();
         return NextResponse.json({ health: healthCheck });
 
       case 'metrics':
-        const metrics = await liteLLMMonitoring.getMonitoringMetrics(hours);
+        const metrics = await getLiteLLMMonitoring().getMonitoringMetrics(hours);
         return NextResponse.json({ metrics });
 
       case 'auto-heal':
-        const healResult = await liteLLMMonitoring.attemptAutoHeal();
+        const healResult = await getLiteLLMMonitoring().attemptAutoHeal();
         return NextResponse.json({ auto_heal: healResult });
 
       default:
         // Return comprehensive monitoring data
+        const monitoring = getLiteLLMMonitoring();
         const [health, metricsData] = await Promise.all([
-          liteLLMMonitoring.performHealthCheck(),
-          liteLLMMonitoring.getMonitoringMetrics(hours)
+          monitoring.performHealthCheck(),
+          monitoring.getMonitoringMetrics(hours)
         ]);
 
-        const alertCheck = liteLLMMonitoring.shouldAlert(health);
+        const alertCheck = getLiteLLMMonitoring().shouldAlert(health);
 
         return NextResponse.json({
           health,
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'run_check':
-        const result = await liteLLMMonitoring.runMonitoringCheck();
+        const result = await getLiteLLMMonitoring().runMonitoringCheck();
         return NextResponse.json({ 
           success: true, 
           result,
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'auto_heal':
-        const healResult = await liteLLMMonitoring.attemptAutoHeal();
+        const healResult = await getLiteLLMMonitoring().attemptAutoHeal();
         return NextResponse.json({ 
           success: true, 
           result: healResult,

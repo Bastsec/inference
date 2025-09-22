@@ -4,10 +4,15 @@ import { liteLLMClient } from '@/lib/litellm/client';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 /**
  * Get user's LiteLLM keys
@@ -28,6 +33,7 @@ export async function GET() {
     }
 
     // Get user's keys from database using Supabase user ID
+    const supabaseAdmin = getSupabaseAdmin();
     let { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
@@ -55,6 +61,7 @@ export async function GET() {
           });
 
           if (target) {
+            const supabaseAdmin = getSupabaseAdmin();
             await supabaseAdmin
               .from('virtual_keys')
               .update({
@@ -69,6 +76,7 @@ export async function GET() {
               })
               .eq('id', target.id);
           } else {
+            const supabaseAdmin = getSupabaseAdmin();
             await supabaseAdmin
               .from('virtual_keys')
               .insert({
@@ -87,6 +95,7 @@ export async function GET() {
           }
 
           // Refetch keys after provisioning
+          const supabaseAdmin = getSupabaseAdmin();
           const refetch = await supabaseAdmin
             .from('virtual_keys')
             .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
@@ -139,7 +148,7 @@ export async function GET() {
     return NextResponse.json({
       keys: formattedKeys,
       litellm_configured: liteLLMClient.isConfigured(),
-      litellm_base_url: `${process.env.SUPABASE_URL}/functions/v1/proxy-service`
+      litellm_base_url: process.env.LITELLM_BASE_URL || `${process.env.SUPABASE_URL}/functions/v1/proxy-service`
     });
 
   } catch (error) {
@@ -184,6 +193,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has a key
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: existingKey } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, litellm_key_id')
@@ -215,6 +225,7 @@ export async function POST(request: NextRequest) {
       // Store in our virtual_keys table
       if (existingKey) {
         // Update existing record
+        const supabaseAdmin = getSupabaseAdmin();
         await supabaseAdmin
           .from('virtual_keys')
           .update({
@@ -233,6 +244,7 @@ export async function POST(request: NextRequest) {
           .eq('id', existingKey.id);
       } else {
         // Create new virtual key record
+        const supabaseAdmin = getSupabaseAdmin();
         await supabaseAdmin
           .from('virtual_keys')
           .insert({

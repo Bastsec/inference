@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
@@ -12,48 +12,46 @@ function getSupabaseAdmin() {
   );
 }
 
-export async function POST() {
+/**
+ * Set the active primary key's credit balance (in cents).
+ * Body: { cents: number }
+ */
+export async function POST(req: NextRequest) {
   try {
+    const { cents } = await req.json();
+    if (!Number.isFinite(cents) || cents < 0) {
+      return NextResponse.json({ error: 'Invalid cents' }, { status: 400 });
+    }
+
     const supabase = await getServerSupabase();
     const { data: authUser } = await supabase.auth.getUser();
     if (!authUser.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Find active primary key (prefer sk-)
     const supabaseAdmin = getSupabaseAdmin();
     const { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
-      .select('id, key, litellm_key_id, credit_balance, is_active, created_at')
+      .select('id, key, is_active')
       .eq('user_id', authUser.user.id)
       .order('created_at', { ascending: true });
     if (error) throw error;
     if (!keys || keys.length === 0) {
-      return NextResponse.json({ error: 'No keys to consolidate' }, { status: 400 });
+      return NextResponse.json({ error: 'No keys found' }, { status: 400 });
     }
 
-    // Determine primary: prefer where key starts with sk-
-    const primary = keys.find(k => typeof k.key === 'string' && k.key.startsWith('sk-')) || keys[0];
-    const duplicates = keys.filter(k => k.id !== primary.id);
+    const primary = keys.find(k => k.is_active && typeof k.key === 'string' && k.key.startsWith('sk-'))
+      || keys.find(k => k.is_active)
+      || keys[0];
 
-    // Keep primary balance as-is and ensure active (do not sum to avoid misleading inflation)
     const { error: upErr } = await supabaseAdmin
       .from('virtual_keys')
-      .update({ is_active: true })
+      .update({ credit_balance: Math.round(cents) })
       .eq('id', primary.id);
     if (upErr) throw upErr;
 
-    // Deactivate duplicates (do not delete to preserve history)
-    if (duplicates.length > 0) {
-      const { error: deErr } = await supabaseAdmin
-        .from('virtual_keys')
-        .update({ is_active: false })
-        .in('id', duplicates.map(d => d.id));
-      if (deErr) throw deErr;
-    }
-
-    const mask = typeof primary.key === 'string' ? `${primary.key.slice(0, 6)}***` : 'unknown';
-
-    return NextResponse.json({ ok: true, active_key_mask: mask });
+    return NextResponse.json({ ok: true, active_key_mask: `${String(primary.key).slice(0, 6)}***`, credit_balance_cents: Math.round(cents) });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

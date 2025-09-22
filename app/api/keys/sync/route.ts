@@ -3,10 +3,15 @@ import { getUser } from '@/lib/db/queries';
 import { liteLLMClient } from '@/lib/litellm/client';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 /**
  * Sync virtual keys with LiteLLM
@@ -30,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the virtual key from database
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: virtualKey, error: keyError } = await supabaseAdmin
       .from('virtual_keys')
       .select('*')
@@ -63,7 +69,7 @@ export async function POST(request: NextRequest) {
         );
 
         // Update local database with LiteLLM key ID
-        await supabaseAdmin.rpc('update_litellm_sync_status', {
+        await getSupabaseAdmin().rpc('update_litellm_sync_status', {
           p_key_id: virtualKey.key,
           p_status: 'synced',
           p_litellm_key_id: litellmResponse.key
@@ -98,7 +104,7 @@ export async function POST(request: NextRequest) {
         );
 
         // Update sync status
-        await supabaseAdmin.rpc('update_litellm_sync_status', {
+        await getSupabaseAdmin().rpc('update_litellm_sync_status', {
           p_key_id: virtualKey.key,
           p_status: 'synced',
           p_litellm_key_id: virtualKey.litellm_key_id
@@ -121,7 +127,7 @@ export async function POST(request: NextRequest) {
       console.error('LiteLLM sync error:', litellmError);
       
       // Update sync status to failed
-      await supabaseAdmin.rpc('update_litellm_sync_status', {
+      await getSupabaseAdmin().rpc('update_litellm_sync_status', {
         p_key_id: virtualKey.key,
         p_status: 'failed'
       });
@@ -153,6 +159,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: keys, error } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, key, litellm_key_id, sync_status, last_synced_at, is_active')

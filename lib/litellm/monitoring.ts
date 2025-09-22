@@ -295,7 +295,13 @@ class LiteLLMMonitoring {
 }
 
 // Export singleton instance
-export const liteLLMMonitoring = new LiteLLMMonitoring();
+let _liteLLMMonitoringInstance: LiteLLMMonitoring | null = null;
+export function getLiteLLMMonitoring(): LiteLLMMonitoring {
+  if (!_liteLLMMonitoringInstance) {
+    _liteLLMMonitoringInstance = new LiteLLMMonitoring();
+  }
+  return _liteLLMMonitoringInstance;
+}
 
 // Export types for use in other modules
 export type { HealthCheckResult, AlertThresholds };

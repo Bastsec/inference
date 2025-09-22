@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Ensure Node.js runtime (Supabase client uses Node APIs)
+export const runtime = 'nodejs';
+// Avoid any static evaluation during build
+export const dynamic = 'force-dynamic';
+
+// Lazily create the admin client to avoid build-time env access
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // DB-first analytics endpoint using Supabase client
 import { liteLLMClient } from '@/lib/litellm/client';
@@ -29,6 +37,7 @@ export async function GET(request: Request) {
     const end = end_date ? new Date(end_date) : new Date();
 
     // Build query using Supabase client
+    const supabaseAdmin = getSupabaseAdmin();
     let query = supabaseAdmin
       .from('usage_logs')
       .select(`
@@ -147,7 +156,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('GET /api/analytics/spend error:', error);
 
-    // Optional fallback to LiteLLM endpoint for spend if configured
+  
     if (process.env.LITELLM_SPEND_FALLBACK === 'true' && liteLLMClient.isConfigured()) {
       try {
         const { searchParams } = new URL(request.url);

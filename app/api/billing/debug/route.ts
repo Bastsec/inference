@@ -3,10 +3,15 @@ import { getUser } from '@/lib/db/queries';
 import { getServerSupabase } from '@/lib/supabase/nextServer';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,6 +23,7 @@ export async function GET(req: NextRequest) {
     if (!authUser.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const userId = authUser.user.id;
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: keys, error: keysErr } = await supabaseAdmin
       .from('virtual_keys')
       .select('id, key, credit_balance, is_active, created_at')
@@ -48,4 +54,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-
