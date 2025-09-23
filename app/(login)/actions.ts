@@ -248,7 +248,7 @@ export async function signInWithOAuth(
   next?: string
 ) {
   const supabase = await getServerSupabase();
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const origin = process.env.NEXT_PUBLIC_SITE_URL
   
   // Build redirect URL with parameters
   const params = new URLSearchParams();
