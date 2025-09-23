@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 import { buildSignInUrl } from '@/lib/auth/redirects';
 
 const protectedRoutes = ['/dashboard', '/analytics'];
@@ -8,59 +7,20 @@ const protectedRoutes = ['/dashboard', '/analytics'];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  // Fast-path: avoid network calls in middleware (Edge runtime)
+  // Determine if a Supabase auth cookie exists; if not, redirect protected routes.
+  if (isProtectedRoute) {
+    const hasSupabaseAuth = request.cookies.getAll().some(c =>
+      c.name.startsWith('sb-') && /-auth-token(\.\d+)?$/.test(c.name)
+    );
 
-  // Create Supabase client for middleware
-  const response = NextResponse.next();
-  
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options) {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    }
-  );
-
-  // Check if user is authenticated via Supabase
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (isProtectedRoute && (!user || error)) {
-      if (error) {
-        console.error('Middleware auth error:', error);
-      }
-      // Build sign-in URL with current path as redirect
-      const signInUrl = buildSignInUrl({ next: pathname });
-      return NextResponse.redirect(new URL(signInUrl, request.url));
-    }
-  } catch (authError) {
-    console.error('Middleware Supabase error:', authError);
-    if (isProtectedRoute) {
+    if (!hasSupabaseAuth) {
       const signInUrl = buildSignInUrl({ next: pathname });
       return NextResponse.redirect(new URL(signInUrl, request.url));
     }
   }
 
-  
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
