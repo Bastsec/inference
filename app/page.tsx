@@ -1,20 +1,11 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/db/queries';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Zap, Shield, DollarSign, Sparkles } from 'lucide-react';
 import { Terminal, TypingAnimation } from '@/components/magicui/terminal';
 import Link from 'next/link';
+export const dynamic = 'force-static';
 
-export default async function HomePage() {
-  // Check if user is authenticated
-  const user = await getUser();
-  
-  // If user is authenticated, redirect to dashboard
-  if (user) {
-    redirect('/dashboard');
-  }
+export default function HomePage() {
 
-  // Show landing page for unauthenticated users
   return (
     <main className="relative overflow-hidden">
       {/* Pastel, futuristic background layers */}
@@ -79,26 +70,52 @@ export default async function HomePage() {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-                <Zap className="h-6 w-6" />
+            {/* Card 1 */}
+            <div className="group relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400/25 via-indigo-400/20 to-fuchsia-400/25 opacity-0 blur-xl transition duration-700 group-hover:opacity-100" />
+              <div className="relative rounded-2xl border border-white/60 bg-white/80 p-6 shadow-sm backdrop-blur transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-100 to-indigo-100 text-sky-700 ring-1 ring-inset ring-white/60">
+                    <Zap className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-900">Lightning-fast API</h4>
+                </div>
+                <p className="mt-4 text-gray-600">Infrastructure tuned for low latency and high reliability.</p>
+                <div className="mt-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+                <p className="mt-4 text-sm text-gray-500">99.9% uptime • Multi-region edge</p>
               </div>
-              <h4 className="mt-5 text-lg font-semibold text-gray-900">Lightning fast API</h4>
-              <p className="mt-2 text-gray-600">Built on infrastructure Optimized For Low Latency and High Reliability.</p>
             </div>
-            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                <DollarSign className="h-6 w-6" />
+
+            {/* Card 2 */}
+            <div className="group relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400/25 via-teal-400/20 to-sky-400/25 opacity-0 blur-xl transition duration-700 group-hover:opacity-100" />
+              <div className="relative rounded-2xl border border-white/60 bg-white/80 p-6 shadow-sm backdrop-blur transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 ring-1 ring-inset ring-white/60">
+                    <DollarSign className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-900">50% cost savings</h4>
+                </div>
+                <p className="mt-4 text-gray-600">Premium models at half the cost—no compromise on quality.</p>
+                <div className="mt-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+                <p className="mt-4 text-sm text-gray-500">Transparent usage • Simple billing</p>
               </div>
-              <h4 className="mt-5 text-lg font-semibold text-gray-900">50% cost savings</h4>
-              <p className="mt-2 text-gray-600">Premium models at half the cost—no compromise on quality or performance.</p>
             </div>
-            <div className="group rounded-xl border bg-white/70 backdrop-blur px-6 py-8 shadow-sm transition hover:shadow-md hover:translate-y-[-2px]">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
-                <Shield className="h-6 w-6" />
+
+            {/* Card 3 */}
+            <div className="group relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-400/25 via-indigo-400/20 to-fuchsia-400/25 opacity-0 blur-xl transition duration-700 group-hover:opacity-100" />
+              <div className="relative rounded-2xl border border-white/60 bg-white/80 p-6 shadow-sm backdrop-blur transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-700 ring-1 ring-inset ring-white/60">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-900">Enterprise security</h4>
+                </div>
+                <p className="mt-4 text-gray-600">Key isolation, encryption, and auditable access controls by default.</p>
+                <div className="mt-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+                <p className="mt-4 text-sm text-gray-500">SOC-ready practices • SSO support</p>
               </div>
-              <h4 className="mt-5 text-lg font-semibold text-gray-900">Enterprise security</h4>
-              <p className="mt-2 text-gray-600">Your keys and data protected with strict isolation, encryption and auditability.</p>
             </div>
           </div>
         </div>
