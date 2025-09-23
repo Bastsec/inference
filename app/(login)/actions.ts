@@ -248,7 +248,19 @@ export async function signInWithOAuth(
   next?: string
 ) {
   const supabase = await getServerSupabase();
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL
+  // Prefer proxy headers when behind Traefik/Coolify; fallback to env
+  let origin = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || '';
+  try {
+    const { headers } = await import('next/headers');
+    const h = await headers();
+    const xfProto = h.get('x-forwarded-proto');
+    const xfHost = h.get('x-forwarded-host');
+    const host = xfHost || h.get('host');
+    const proto = xfProto || (origin.startsWith('https') ? 'https' : 'http');
+    if (host) origin = `${proto}://${host}`;
+  } catch {
+    // no-op: headers() not available; rely on env
+  }
   
   // Build redirect URL with parameters
   const params = new URLSearchParams();

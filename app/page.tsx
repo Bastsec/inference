@@ -52,12 +52,18 @@ export default function HomePage() {
             <div className="relative lg:col-span-5">
               <div className="relative animate-in fade-in slide-in-from-bottom-4">
                 <Terminal>
-                  <TypingAnimation>$</TypingAnimation>
-                  <TypingAnimation>$</TypingAnimation>
-                  <TypingAnimation>$</TypingAnimation>
-                  <TypingAnimation>$</TypingAnimation>
-                  <TypingAnimation>$</TypingAnimation>
-                  <TypingAnimation>$</TypingAnimation>
+                  <TypingAnimation>{'import OpenAI from "openai";'}</TypingAnimation>
+                  <TypingAnimation>{'const client = new OpenAI({'}</TypingAnimation>
+                  <TypingAnimation>{'  apiKey: process.env.BASTION_API_KEY,'}</TypingAnimation>
+                  <TypingAnimation>{'  baseURL: "https://lite.bastco.org"'}</TypingAnimation>
+                  <TypingAnimation>{'});'}</TypingAnimation>
+                  <TypingAnimation>{'const response = await client.chat.completions.create({'}</TypingAnimation>
+                  <TypingAnimation>{'  model: "gpt-5",'}</TypingAnimation>
+                  <TypingAnimation>{'  messages: ['}</TypingAnimation>
+                  <TypingAnimation>{'    { role: "user", content: "Hello, how are you?" }'}</TypingAnimation>
+                  <TypingAnimation>{'  ]'}</TypingAnimation>
+                  <TypingAnimation>{'});'}</TypingAnimation>
+                  <TypingAnimation>{'console.log(response.choices[0].message.content);'}</TypingAnimation>
                 </Terminal>
               </div>
               <div className="pointer-events-none absolute -inset-2 -z-10 rounded-3xl bg-[conic-gradient(from_90deg_at_50%_50%,rgba(56,189,248,0.25),rgba(167,139,250,0.25),rgba(244,114,182,0.25),rgba(56,189,248,0.25))] blur-2xl opacity-75" />

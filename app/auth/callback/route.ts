@@ -8,7 +8,12 @@ import { liteLLMClient } from '@/lib/litellm/client';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  // Derive origin from proxy headers first, then fallback to request URL
+  const xfProto = request.headers.get('x-forwarded-proto');
+  const xfHost = request.headers.get('x-forwarded-host');
+  const host = xfHost || request.headers.get('host');
+  const origin = host ? `${xfProto || 'https'}://${host}` : new URL(request.url).origin;
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
