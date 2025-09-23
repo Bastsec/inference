@@ -2,19 +2,6 @@ services:
   web:
     build:
       context: .
-      args:
-        POSTGRES_URL: ${POSTGRES_URL}
-        SUPABASE_URL: ${SUPABASE_URL}
-        SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-        SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-        PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY}
-        BASE_URL: ${BASE_URL}
-        LITELLM_BASE_URL: ${LITELLM_BASE_URL}
-        LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
-        PAYSTACK_FUNCTION_NAME: ${PAYSTACK_FUNCTION_NAME:-payment-function}
-        POST_PAYMENT_REDIRECT_PATH: ${POST_PAYMENT_REDIRECT_PATH:-/dashboard/billing}
-        PAYSTACK_CURRENCY: ${PAYSTACK_CURRENCY:-USD}
-        USD_TO_KES_RATE: ${USD_TO_KES_RATE:-129}
     image: inference-web:latest
     container_name: inference-web
     restart: unless-stopped
@@ -39,7 +26,7 @@ services:
       # Optional: enable cost headers from proxy responses
       - INCLUDE_COST_HEADERS=${INCLUDE_COST_HEADERS:-false}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
