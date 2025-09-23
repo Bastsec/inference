@@ -33,5 +33,4 @@ export default function RootLayout({
   );
 }
 
-// Force dynamic rendering across the app to avoid PPR cookie bailouts during build
 export const dynamic = 'force-dynamic';

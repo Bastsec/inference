@@ -1,36 +1,67 @@
 # Stage 1: Install dependencies
-FROM node:22-slim AS deps
+FROM node:20-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* bun.lockb* ./
-# Use npm for a pure Node environment
-RUN npm install
+# Install deps: prefer npm ci if a lockfile exists, otherwise npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Stage 2: Build the application
-FROM node:22-slim AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Pass build-time args from Docker Compose
+# Pass build-time args from Docker Compose (.env.example reference)
 ARG POSTGRES_URL
+ARG BASE_URL
+ARG AUTH_SECRET
+
+# Paystack
+ARG PAYSTACK_SECRET_KEY
+ARG PAYSTACK_PUBLIC_KEY
+ARG PAYSTACK_CURRENCY
+ARG USD_TO_KES_RATE
+ARG PAYSTACK_FUNCTION_NAME
+ARG POST_PAYMENT_REDIRECT_PATH
+
+# Supabase
 ARG SUPABASE_URL
 ARG SUPABASE_ANON_KEY
 ARG SUPABASE_SERVICE_ROLE_KEY
-# ... (add all your other ARGs here)
+
+# OAuth providers
+ARG GOOGLE_CLIENT_ID
+ARG GOOGLE_CLIENT_SECRET
+
+
+# LiteLLM
+ARG LITELLM_BASE_URL
+ARG LITELLM_MASTER_KEY
 
 # Set them as environment variables for the build process
-ENV POSTGRES_URL=$POSTGRES_URL
-ENV SUPABASE_URL=$SUPABASE_URL
-ENV SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
-ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
-# ... (add all your other ENVs here)
+ENV POSTGRES_URL=$POSTGRES_URL \
+    BASE_URL=$BASE_URL \
+    AUTH_SECRET=$AUTH_SECRET \
+    PAYSTACK_SECRET_KEY=$PAYSTACK_SECRET_KEY \
+    PAYSTACK_PUBLIC_KEY=$PAYSTACK_PUBLIC_KEY \
+    PAYSTACK_CURRENCY=$PAYSTACK_CURRENCY \
+    USD_TO_KES_RATE=$USD_TO_KES_RATE \
+    PAYSTACK_FUNCTION_NAME=$PAYSTACK_FUNCTION_NAME \
+    POST_PAYMENT_REDIRECT_PATH=$POST_PAYMENT_REDIRECT_PATH \
+    SUPABASE_URL=$SUPABASE_URL \
+    SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+    SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY \
+    GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
+    GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET \
+    LITELLM_BASE_URL=$LITELLM_BASE_URL \
+    LITELLM_MASTER_KEY=$LITELLM_MASTER_KEY
 
 RUN npm run build
 
 # Stage 3: Production runner
-FROM node:22-slim AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -40,8 +71,6 @@ ENV HOSTNAME=0.0.0.0
 # Copy standalone production build
 # .next/standalone contains server.js and minimal node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-# Include server artifacts required by the App Router (client/server reference manifests)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/server ./.next/server
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
