@@ -65,3 +65,4 @@ Thumbs.db
 
 # Turbopack / Turborepo cache (if enabled)
 .turbo/
+supabase/
