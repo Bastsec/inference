@@ -9,6 +9,7 @@ COPY package.json ./
 RUN bun install
 
 # Build the app (Next outputs standalone server)
+RUN mkdir -p public
 COPY . .
 RUN bun run build
 
