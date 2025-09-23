@@ -248,7 +248,7 @@ export async function signInWithOAuth(
   next?: string
 ) {
   const supabase = await getServerSupabase();
-  const origin = process.env.NEXT_PUBLIC_SITE_URL
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL
   
   // Build redirect URL with parameters
   const params = new URLSearchParams();
