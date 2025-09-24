@@ -1,11 +1,9 @@
 // Server Component: Billing & Keys page
 
 import { getUser } from '@/lib/db/queries';
-import nextDynamic from 'next/dynamic';
-
-// Import client components dynamically to avoid RSC issues
-const CreditBalanceCard = nextDynamic(() => import('@/components/billing/CreditBalanceCard'), { ssr: false });
-const KeyManagement = nextDynamic(() => import('@/components/KeyManagement'), { ssr: false });
+// Import client components directly; allowed within a Server Component
+import CreditBalanceCard from '@/components/billing/CreditBalanceCard';
+import KeyManagement from '@/components/KeyManagement';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
