@@ -5,7 +5,7 @@ import { Manrope } from 'next/font/google';
 export const runtime = 'nodejs';
 
 export const metadata: Metadata = {
-  title: 'Basti - Premium AI Models at 50% Off',
+  title: 'Bastion - Premium AI Models at 50% Off',
   description: 'Access OpenAI GPT-4o, GPT-4 Turbo, and more at half the cost. Same quality, better pricing.'
 };
 

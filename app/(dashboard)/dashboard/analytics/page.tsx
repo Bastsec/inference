@@ -328,7 +328,7 @@ export default function AnalyticsPage() {
               <p className="text-3xl font-bold text-green-600">
                 ${analytics.totalSpent.toFixed(2)}
               </p>
-              <p className="text-sm text-muted-foreground">You Paid (Basti)</p>
+              <p className="text-sm text-muted-foreground">You Paid (Bastion)</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-red-600">
@@ -345,7 +345,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="mt-4 p-4 bg-green-50 rounded-lg">
             <p className="text-center text-green-800 font-medium">
-              🎉 You've saved 50% on your AI costs this month with Basti!
+              🎉 You've saved 50% on your AI costs this month with Bastion!
             </p>
           </div>
         </CardContent>

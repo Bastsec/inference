@@ -39,7 +39,7 @@ export default async function DashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard">
+        <Link href="/dashboard/billing">
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-200">
             <div className="flex items-center">
               <div className="flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white">
@@ -111,4 +111,3 @@ export default async function DashboardPage() {
     </main>
   );
 }
-

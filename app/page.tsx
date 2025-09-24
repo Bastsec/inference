@@ -134,7 +134,7 @@ export default function HomePage() {
             <div className="grid gap-8 items-center sm:grid-cols-2">
               <div>
                 <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Ready to cut your AI costs?</h2>
-                <p className="mt-3 text-gray-600">Join developers saving with Basti. Same models, simpler experience, better pricing.</p>
+                <p className="mt-3 text-gray-600">Join developers saving with Bastion. Same models, simpler experience, better pricing.</p>
               </div>
               <div className="flex sm:justify-end">
                 <Link href="/sign-up">

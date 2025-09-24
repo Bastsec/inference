@@ -133,7 +133,7 @@ export async function GET() {
         return {
           id: k.id,
           key: displayKey,
-          key_alias: `Basti API Key`,
+          key_alias: `Bastion API Key`,
           is_active: k.is_active,
           created_at: k.created_at,
           credit_balance: k.credit_balance ? k.credit_balance / 100 : 0, // Convert cents to dollars
