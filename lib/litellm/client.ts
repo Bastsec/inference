@@ -109,7 +109,6 @@ class LiteLLMClient {
     this.supportedParamsUrl = process.env.LITELLM_SUPPORTED_PARAMS_URL || `${this.baseUrl}/utils/supported_openai_params`;
     this.customerNewUrl = process.env.LITELLM_CUSTOMER_NEW_URL || `${this.baseUrl}/customer/new`;
     this.customerInfoUrl = process.env.LITELLM_CUSTOMER_INFO_URL || `${this.baseUrl}/customer/info`;
-    // Default to non-aggregated daily activity per provided specs
     this.userDailyActivityUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_URL || `${this.baseUrl}/user/daily/activity`;
     this.userDailyActivityAggregatedUrl = process.env.LITELLM_USER_DAILY_ACTIVITY_AGG_URL || `${this.baseUrl}/user/daily/activity/aggregated`;
 
@@ -118,7 +117,6 @@ class LiteLLMClient {
     }
   }
 
-  // GET /models (optionally filter by litellm_model_id)
   async getModels(litellm_model_id?: string): Promise<any> {
     const url = litellm_model_id
       ? `${this.modelsUrl}?litellm_model_id=${encodeURIComponent(litellm_model_id)}`
@@ -126,7 +124,6 @@ class LiteLLMClient {
     return this.makeRequest<any>(url);
   }
 
-  // GET /utils/supported_openai_params?model=...
   async getSupportedOpenAIParams(model: string): Promise<any> {
     const url = `${this.supportedParamsUrl}?model=${encodeURIComponent(model)}`;
     return this.makeRequest<any>(url);
@@ -223,12 +220,12 @@ class LiteLLMClient {
     return this.makeRequest<LiteLLMUserDailyActivityResponse>(url);
   }
 
-  // Utility method to check if LiteLLM is configured
+  
   isConfigured(): boolean {
     return !!(this.baseUrl && this.masterKey);
   }
 
-  // Retry wrapper with exponential backoff
+  
   async withRetry<T>(
     operation: () => Promise<T>,
     maxRetries = 3,
@@ -256,10 +253,10 @@ class LiteLLMClient {
   }
 }
 
-// Export singleton instance
+
 export const liteLLMClient = new LiteLLMClient();
 
-// Export error types for better error handling
+
 export class LiteLLMError extends Error {
   constructor(message: string, public statusCode?: number) {
     super(message);

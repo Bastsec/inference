@@ -1,0 +1,12 @@
+model_list:
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: gpt-3.5-turbo
+      api_key: env("OPENAI_API_KEY")
+
+litellm_settings:
+  success_callback: ["custom_callbacks.send_to_backend"]
+
+environment_variables:
+  USAGE_CALLBACK_URL: env("USAGE_CALLBACK_URL")
+  USAGE_CALLBACK_TOKEN: env("USAGE_CALLBACK_TOKEN")

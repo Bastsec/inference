@@ -39,14 +39,30 @@ export async function GET() {
       .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
       .eq('user_id', authUser.user.id);
 
+    let keysTyped = (keys || []) as Array<{
+      id: string;
+      key: string;
+      user_id: string;
+      credit_balance: number | null;
+      is_active: boolean;
+      created_at: string;
+      litellm_key_id: string | null;
+      max_budget: number | null;
+      budget_duration: string | null;
+      rpm_limit: number | null;
+      tpm_limit: number | null;
+      sync_status: string | null;
+      last_synced_at: string | null;
+    }>;
+
     if (error) {
       throw error;
     }
 
     // Auto-provision a LiteLLM key if none exists yet so free $2 trial is usable immediately
     if (liteLLMClient.isConfigured()) {
-      const hasSkKey = (keys || []).some(k => typeof k.key === 'string' && k.key.startsWith('sk-'))
-        || (keys || []).some(k => typeof (k as any).litellm_key_id === 'string' && (k as any).litellm_key_id.startsWith('sk-'));
+      const hasSkKey = keysTyped.some(k => typeof k.key === 'string' && k.key.startsWith('sk-'))
+        || keysTyped.some(k => typeof (k as any).litellm_key_id === 'string' && (k as any).litellm_key_id.startsWith('sk-'));
       if (!hasSkKey) {
         try {
           const target = (keys && keys[0]) || null;
@@ -101,6 +117,21 @@ export async function GET() {
             .select('id, key, user_id, credit_balance, is_active, created_at, litellm_key_id, max_budget, budget_duration, rpm_limit, tpm_limit, sync_status, last_synced_at')
             .eq('user_id', authUser.user.id);
           keys = refetch.data || keys;
+          keysTyped = (keys || []) as Array<{
+            id: string;
+            key: string;
+            user_id: string;
+            credit_balance: number | null;
+            is_active: boolean;
+            created_at: string;
+            litellm_key_id: string | null;
+            max_budget: number | null;
+            budget_duration: string | null;
+            rpm_limit: number | null;
+            tpm_limit: number | null;
+            sync_status: string | null;
+            last_synced_at: string | null;
+          }>;
         } catch (provisionErr) {
           console.warn('[keys/manage] auto-provision LiteLLM key failed:', provisionErr);
         }
@@ -109,10 +140,10 @@ export async function GET() {
 
     // Debug: log raw balances (mask key)
     try {
-      const debugBalances = (keys || []).map(k => ({
+      const debugBalances = keysTyped.map(k => ({
         id: k.id,
         key_mask: typeof k.key === 'string' ? `${k.key.slice(0, 6)}***` : null,
-        credit_balance_cents: k.credit_balance,
+        credit_balance_cents: k.credit_balance ?? 0,
         is_active: k.is_active,
         created_at: k.created_at,
       }));
@@ -124,7 +155,7 @@ export async function GET() {
     }
 
     // Format keys for display
-    const formattedKeys = (keys || [])
+    const formattedKeys = keysTyped
       .map(k => {
         const keyStr = typeof k.key === 'string' ? k.key : '';
         const litellmKey = typeof (k as any).litellm_key_id === 'string' ? (k as any).litellm_key_id : '';
@@ -136,8 +167,8 @@ export async function GET() {
           key_alias: `Bastion API Key`,
           is_active: k.is_active,
           created_at: k.created_at,
-          credit_balance: k.credit_balance ? k.credit_balance / 100 : 0, // Convert cents to dollars
-          needs_payment: k.credit_balance <= 0 // Flag when credits are exhausted
+          credit_balance: (k.credit_balance ?? 0) / 100, // Convert cents to dollars
+          needs_payment: (k.credit_balance ?? 0) <= 0 // Flag when credits are exhausted
         };
       })
       .filter(item => typeof item.key === 'string' && item.key.startsWith('sk-'));
