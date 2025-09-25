@@ -151,11 +151,99 @@ class LiteLLMClient {
     return response.json();
   }
 
+  private parseLiteLLMError(error: unknown): { status?: number; body?: unknown } | null {
+    if (!(error instanceof Error)) {
+      return null;
+    }
+
+    const match = error.message.match(/LiteLLM API error \((\d+)\):\s*(.*)$/);
+    if (!match) {
+      return null;
+    }
+
+    const [, statusRaw, bodyRaw] = match;
+    const status = Number(statusRaw);
+
+    try {
+      return { status, body: JSON.parse(bodyRaw) };
+    } catch {
+      return { status, body: bodyRaw };
+    }
+  }
+
+  private isAliasConflict(error: unknown): boolean {
+    const parsed = this.parseLiteLLMError(error);
+    if (!parsed) {
+      return false;
+    }
+
+    const status = parsed.status;
+    if (status !== 400) {
+      return false;
+    }
+
+    const body = parsed.body;
+    if (body && typeof body === 'object' && 'error' in body) {
+      const payload = (body as any).error;
+      const message: string = typeof payload?.message === 'string' ? payload.message : '';
+      const param: string = typeof payload?.param === 'string' ? payload.param : '';
+
+      if (param === 'key_alias' && /already exists/i.test(message)) {
+        return true;
+      }
+    }
+
+    if (body && typeof body === 'string') {
+      return body.includes('key_alias') && /already exists/i.test(body);
+    }
+
+    if (parsed && (error as Error).message.includes('key_alias') && /(already exists|duplicate)/i.test((error as Error).message)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private dedupeAlias(baseAlias: string): string {
+    const randomSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(-6)}`;
+    return `${baseAlias}-${randomSuffix}`;
+  }
+
   async generateKey(request: LiteLLMKeyGenerateRequest): Promise<LiteLLMKeyGenerateResponse> {
-    return this.makeRequest<LiteLLMKeyGenerateResponse>(this.keyGenerateUrl, {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
+    const baseAlias = request.key_alias;
+    const maxAttempts = baseAlias ? 3 : 1;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const alias = baseAlias
+        ? (attempt === 0 ? baseAlias : this.dedupeAlias(baseAlias))
+        : undefined;
+
+      const payload: LiteLLMKeyGenerateRequest = {
+        ...request,
+        ...(alias ? { key_alias: alias } : {}),
+      };
+
+      try {
+        return await this.makeRequest<LiteLLMKeyGenerateResponse>(this.keyGenerateUrl, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        lastError = error;
+        if (!baseAlias || !this.isAliasConflict(error) || attempt === maxAttempts - 1) {
+          throw error;
+        }
+
+        console.warn(
+          `LiteLLM key alias '${alias}' already exists. Retrying with a deduplicated alias.`,
+        );
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Unknown LiteLLM key generation error');
   }
 
   async updateKey(request: LiteLLMKeyUpdateRequest): Promise<void> {
